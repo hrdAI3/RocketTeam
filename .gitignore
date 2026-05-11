@@ -1,0 +1,44 @@
+node_modules/
+.next/
+.turbo/
+out/
+build/
+dist/
+
+# Env (never commit secrets). Lives at project root by Next.js convention.
+.env
+.env.local
+.env.production
+
+# Build artifacts
+tsconfig.tsbuildinfo
+
+# Local Claude Code settings
+.claude/
+
+# Confidential data layer. ALL real meeting transcripts, org chart, generated
+# personal-agent profiles, runtime task/sim state, encrypted credentials, and
+# real-name source-data shims live under team/private/. Never committed.
+# Public placeholder mirror at team/private.example/ (committed, with stub
+# data) lets fresh clones boot without setup.
+private/
+
+# Third-party screenshots / proprietary references — keep local only
+multica_ui.png
+
+# LLM proxy runtime queue + archive (contains real prompt/response payloads)
+tools/llm-proxy/queue/
+
+# Test artifacts
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

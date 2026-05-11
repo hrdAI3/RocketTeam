@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html {
+    background: #FAF9F5;
+  }
+  html, body {
+    height: 100%;
+    color: #1F1F1C;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+  }
+  body {
+    background: #FAF9F5;
+  }
+  /* Subtle grain only on pages without their own backdrop */
+  main {
+    isolation: isolate;
+  }
+  *:focus-visible {
+    outline: 2px solid #D97757;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: #FCEEE2;
+    color: #1F1F1C;
+  }
+  /* CJK italic looks ugly (no real italic glyphs in CJK fonts).
+     Instead: render italics as serif + lighter color + slightly looser tracking. */
+  :lang(zh-CN) i,
+  :lang(zh-CN) em,
+  :lang(zh-CN) .italic,
+  i:has(> :lang(zh-CN)),
+  em:has(> :lang(zh-CN)) {
+    font-style: normal;
+    color: #5A5A57;
+    letter-spacing: 0.015em;
+  }
+  /* Force-strip italic class on serif blocks holding Chinese text. Catches
+     the .italic Tailwind utility on common quote elements where Chinese
+     is the primary script. */
+  .font-serif.italic {
+    font-style: normal;
+    color: #5A5A57;
+  }
+  @media (max-width: 1023px) {
+    body::before {
+      content: 'Demo viewing requires desktop (≥ 1024px)';
+      display: flex;
+      position: fixed;
+      inset: 0;
+      align-items: center;
+      justify-content: center;
+      background: #FAF9F5;
+      color: #1F1F1C;
+      font-size: 16px;
+      z-index: 9999;
+      padding: 24px;
+      text-align: center;
+      font-family: var(--font-source-serif), serif;
+    }
+  }
+}
+
+@layer components {
+  /* Editorial display title — serif, generous leading, tight tracking */
+  .display-title {
+    font-family: var(--font-source-serif), 'Songti SC', Georgia, serif;
+    font-weight: 500;
+    font-size: 36px;
+    line-height: 42px;
+    letter-spacing: -0.02em;
+    color: #1F1F1C;
+  }
+  .hero-title {
+    font-family: var(--font-source-serif), 'Songti SC', Georgia, serif;
+    font-weight: 500;
+    font-size: 48px;
+    line-height: 54px;
+    letter-spacing: -0.025em;
+    color: #1F1F1C;
+  }
+  .eyebrow {
+    font-family: var(--font-geist-mono), monospace;
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #8A8782;
+  }
+  .card-surface {
+    background: #FFFFFF;
+    border: 1px solid #E8E3D5;
+    border-radius: 12px;
+  }
+  .card-warm {
+    background: #FFFEFB;
+    border: 1px solid #E8E3D5;
+    border-radius: 12px;
+  }
+  /* Soft quote — replaces italic for CJK pull-quotes */
+  .quote-soft {
+    font-family: var(--font-source-serif), 'Songti SC', Georgia, serif;
+    font-weight: 400;
+    color: #5A5A57;
+    line-height: 1.6;
+    border-left: 2px solid #F5DCC9;
+    padding-left: 12px;
+  }
+  /* Coral pill button (primary) */
+  .btn-coral {
+    background: #D97757;
+    color: #FFFFFF;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: background 120ms ease;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-coral:hover { background: #C76A4D; }
+  .btn-coral:disabled { background: #DBD5C3; color: #8A8782; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent;
+    color: #2A2A26;
+    border: 1px solid #DBD5C3;
+    padding: 6px 13px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: background 120ms ease;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { background: #F2EFE6; }
+  .link-coral {
+    color: #D97757;
+    text-decoration: none;
+    transition: color 120ms ease;
+  }
+  .link-coral:hover { color: #C76A4D; text-decoration: underline; text-underline-offset: 2px; }
+  /* Tier badge */
+  .tier-deep { background: #FCEEE2; color: #C76A4D; }
+  .tier-lite { background: #F2EFE6; color: #5A5A57; }
+  .tier-stub { background: transparent; color: #8A8782; border: 1px dashed #DBD5C3; }
+  .prose-warm p {
+    color: #2A2A26;
+    line-height: 1.65;
+  }
+}
