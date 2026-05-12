@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-05-12T07:47:38.082Z",
+  "created_by": "dai",
+  "required_hooks": [
+    "UserPromptSubmit",
+    "Stop"
+  ],
+  "required_plugins": [],
+  "required_project_skills": [],
+  "schema_version": 1,
+  "teamagent_version": "0.0.0"
+}
