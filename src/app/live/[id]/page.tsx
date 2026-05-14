@@ -11,21 +11,21 @@ import { TaskCard } from '../../../components/TaskCard';
 import type { AgentAction, Department, Task, SimulationConfig } from '@/types';
 
 const ACTION_LABEL: Record<string, string> = {
-  BID: '投标',
-  DEFER: '推让',
-  RECOMMEND_SPLIT: '建议拆分',
-  OBJECT: '反对',
-  COMMIT: '承接',
-  REFINED_BID: '反思修正'
+  BID: 'Bid',
+  DEFER: 'Defer',
+  RECOMMEND_SPLIT: 'Recommend split',
+  OBJECT: 'Object',
+  COMMIT: 'Commit',
+  REFINED_BID: 'Refined bid'
 };
 
 const ACTION_VERB: Record<string, string> = {
-  BID: '愿意承接',
-  DEFER: '建议交给',
-  RECOMMEND_SPLIT: '建议拆成',
-  OBJECT: '反对方案',
-  COMMIT: '正式承接',
-  REFINED_BID: '反思后修正评分'
+  BID: 'willing to take it on',
+  DEFER: 'suggests passing to',
+  RECOMMEND_SPLIT: 'recommends splitting into',
+  OBJECT: 'objects to the plan',
+  COMMIT: 'formally commits',
+  REFINED_BID: 'revised score after reflection'
 };
 
 interface LiveState {
@@ -39,13 +39,13 @@ interface LiveState {
   error?: string;
 }
 
-const ROUND_LABEL = ['', '初轮表态', '推让与拆分', '反对与承接', '反思与定稿'];
+const ROUND_LABEL = ['', 'Initial stances', 'Defers and splits', 'Objections and commits', 'Reflection and lock-in'];
 const ROUND_DESC = [
   '',
-  '每位候选成员独立给出能力 / 负载 / 协作三维评分',
-  '看见同伴的评分后，部分成员选择推让或建议拆分',
-  '可能反对、可能正式承接，达到共识则收敛',
-  '看完全部讨论后，每人重审自己的能力分数。听到反对会改，被夸了会升'
+  'Each candidate independently scores capability / load / collaboration.',
+  'After seeing peers\' scores, some defer or recommend a split.',
+  'Members may object or formally commit; consensus = converged.',
+  'After hearing the full discussion, each member revisits their own scores.'
 ];
 
 export default function LiveSimPage({ params }: { params: { id: string } }) {
@@ -77,7 +77,7 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
       try {
         const res = await fetch(url, { signal: ctrl.signal });
         if (!res.ok || !res.body) {
-          setState((s) => ({ ...s, error: `连接失败 ${res.status}`, done: true }));
+          setState((s) => ({ ...s, error: `Connection failed ${res.status}`, done: true }));
           return;
         }
         const reader = res.body.getReader();
@@ -132,7 +132,7 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
   }, [params.id]);
 
   const cancelSim = async () => {
-    if (!confirm('确认取消本次推演？已产生的部分会保留在审计日志，但不会生成最终决策。')) return;
+    if (!confirm('Cancel this simulation? Partial actions remain in the audit log, but no final decision will be produced.')) return;
     try {
       await fetch(`/api/sim/${params.id}/cancel`, { method: 'POST' });
       router.push('/tasks');
@@ -149,37 +149,37 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
             href="/tasks"
             className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
           >
-            ← 任务
+            ← Tasks
           </Link>
           <div className="eyebrow mb-1">
-            团队推演 · <span className="font-mono">{params.id}</span>
+            Team simulation · <span className="font-mono">{params.id}</span>
           </div>
           <h1 className="display-title">
-            {state.config?.task_description ?? <span className="text-ink-quiet">推演任务加载中…</span>}
+            {state.config?.task_description ?? <span className="text-ink-quiet">Loading task…</span>}
           </h1>
         </div>
         {!state.done && !state.error && (
           <button
             onClick={cancelSim}
             className="btn-ghost text-caption inline-flex items-center gap-1.5 shrink-0 mt-8"
-            title="取消推演（页面后台依然能继续，关掉它会停推演）"
+            title="Cancel the simulation (it continues if the page is open; closing the page stops it)"
           >
-            取消推演
+            Cancel
           </button>
         )}
       </header>
       {state.config && (
         <p className="text-body text-ink-muted mb-4">
-          {state.config.eligible_agents.length} 位候选 · {state.config.rounds} 轮推演 ·{' '}
-          策略：
-          {STRATEGY_LABEL_LOCAL[(state.config as { strategy?: string }).strategy ?? '']?.name ?? '默认'}
-          {state.config.splittable && ' · 任务可拆分'}
+          {state.config.eligible_agents.length} candidate{state.config.eligible_agents.length === 1 ? '' : 's'} · {state.config.rounds} round{state.config.rounds === 1 ? '' : 's'} ·{' '}
+          Strategy:{' '}
+          {STRATEGY_LABEL_LOCAL[(state.config as { strategy?: string }).strategy ?? '']?.name ?? 'Default'}
+          {state.config.splittable && ' · splittable'}
         </p>
       )}
 
       {state.error && (
         <div className="card-surface border-rust p-4 mb-6 text-body text-ink">
-          推演出错：{state.error}
+          Simulation error: {state.error}
         </div>
       )}
 
@@ -209,12 +209,12 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
             }}
           />
           <div className="mt-3 flex items-center gap-3 text-caption">
-            <Link href="/tasks" className="btn-ghost">返回任务列表</Link>
+            <Link href="/tasks" className="btn-ghost">Back to tasks</Link>
             <button
               onClick={() => router.push(`/sim/${params.id}`)}
               className="btn-ghost inline-flex items-center gap-1.5"
             >
-              查看完整推演 <ArrowRight size={12} />
+              View full simulation <ArrowRight size={12} />
             </button>
           </div>
         </div>
@@ -225,8 +225,8 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
         <div className="card-warm p-6 mb-6 shadow-soft animate-fade-in flex items-center gap-3">
           <Loader2 size={18} className="text-coral animate-spin" />
           <div>
-            <div className="font-serif text-[16px] text-ink">Report Agent 正在综合本次推演</div>
-            <div className="text-caption text-ink-quiet">即将给出最终分工建议…</div>
+            <div className="font-serif text-[16px] text-ink">Report Agent is synthesizing this simulation</div>
+            <div className="text-caption text-ink-quiet">Final assignment recommendation incoming…</div>
           </div>
         </div>
       )}
@@ -263,9 +263,9 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
           <div className="flex items-center gap-3">
             <Loader2 size={18} className="text-coral animate-spin" />
             <div>
-              <div className="font-serif text-[16px] text-ink">配置生成中</div>
+              <div className="font-serif text-[16px] text-ink">Generating configuration</div>
               <div className="text-caption text-ink-quiet">
-                PMA 正在拆解任务、寻找干系人、认真思考中...
+                PMA is decomposing the task and identifying stakeholders…
               </div>
             </div>
           </div>
@@ -303,13 +303,13 @@ function CandidatePanel({
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <Users size={14} className="text-coral" />
-          <h2 className="font-serif text-[16px] text-ink">PMA 选出的候选成员</h2>
+          <h2 className="font-serif text-[16px] text-ink">Candidates picked by PMA</h2>
           <span className="text-[11px] text-ink-quiet font-mono">
-            {config.eligible_agents.length} 人
+            {config.eligible_agents.length} member{config.eligible_agents.length === 1 ? '' : 's'}
           </span>
         </div>
         <div className="text-[11px] text-ink-quiet">
-          {synthesizing ? '讨论结束' : done ? '推演完成' : '讨论进行中'}
+          {synthesizing ? 'Discussion ended' : done ? 'Simulation complete' : 'Discussion in progress'}
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -324,7 +324,7 @@ function CandidatePanel({
                   ? 'bg-coral-subtle border-coral-mute'
                   : 'bg-paper-subtle border-rule opacity-70'
               }`}
-              title={`已发言轮次：${[...rounds].sort().join(', ') || '尚未发言'}`}
+              title={`Spoke in round${rounds.size === 1 ? '' : 's'}: ${[...rounds].sort().join(', ') || 'none yet'}`}
             >
               <Avatar name={name} dept={deptMap[name]} size="xs" />
               <span className="font-serif text-[13px] text-ink">{name}</span>
@@ -335,7 +335,7 @@ function CandidatePanel({
                     className={`w-1.5 h-1.5 rounded-full ${
                       rounds.has(r) ? 'bg-coral' : 'bg-rule-strong'
                     }`}
-                    aria-label={`第 ${r} 轮${rounds.has(r) ? '已发言' : '未发言'}`}
+                    aria-label={`Round ${r} ${rounds.has(r) ? 'spoken' : 'not spoken'}`}
                   />
                 ))}
               </span>
@@ -348,10 +348,10 @@ function CandidatePanel({
 }
 
 const STRATEGY_LABEL_LOCAL: Record<string, { name: string; desc: string }> = {
-  concentrated: { name: '集中承接', desc: '挑最稳的人主做 · 短轮快速收敛' },
-  delegate: { name: '委派优先', desc: '优先 AI agent；找 capacity 高的人' },
-  stretch_review: { name: '成长导向', desc: '给学习曲线上的人 stretch 机会主做' },
-  ai_batch: { name: 'AI 批处理', desc: '默认全交给 AI agent' }
+  concentrated: { name: 'Concentrated ownership', desc: 'Pick the strongest fit · short rounds, fast convergence' },
+  delegate: { name: 'Delegate first', desc: 'Prefer AI agents; otherwise high-capacity members' },
+  stretch_review: { name: 'Growth-oriented', desc: 'Hand stretch work to members on a learning curve' },
+  ai_batch: { name: 'AI batch', desc: 'Default to handing everything to AI agents' }
 };
 
 function TrackPanel({
@@ -404,16 +404,16 @@ function TrackPanel({
           </div>
           <div>
             <h3 className="font-serif text-[18px] text-ink leading-tight">
-              {stratInfo ? `推演策略 · ${stratInfo.name}` : '推演讨论'}
+              {stratInfo ? `Strategy · ${stratInfo.name}` : 'Simulation discussion'}
             </h3>
             <div className="text-[11px] text-ink-quiet leading-tight">
-              {stratInfo?.desc ?? '团队成员逐轮表态、互评、反思'}
+              {stratInfo?.desc ?? 'Members weigh in, score, defer, and reflect round by round'}
             </div>
           </div>
         </div>
         {isCurrent && currentRound && (
           <span className="text-[10.5px] px-2 py-0.5 rounded-full bg-coral text-white animate-pulse-coral">
-            第 {currentRound} / {totalRounds} 轮
+            Round {currentRound} / {totalRounds}
           </span>
         )}
       </header>
@@ -423,7 +423,7 @@ function TrackPanel({
       </div>
       <div className="text-[10.5px] font-mono text-ink-quiet mb-3 flex justify-between">
         <span>
-          {actions.length} / {expected} 动作
+          {actions.length} / {expected} action{expected === 1 ? '' : 's'}
         </span>
         <span>{Math.round(pct)}%</span>
       </div>
@@ -435,7 +435,7 @@ function TrackPanel({
           return (
             <div key={r}>
               <div className="flex items-baseline gap-2 mb-1.5 sticky top-0 bg-inherit py-0.5">
-                <div className="eyebrow">第 {r} 轮 · {ROUND_LABEL[r]}</div>
+                <div className="eyebrow">Round {r} · {ROUND_LABEL[r]}</div>
                 <span className="text-[10px] text-ink-quiet">{ROUND_DESC[r]}</span>
               </div>
               <div className="space-y-1.5">
@@ -445,7 +445,7 @@ function TrackPanel({
                 {currentRound === r && isCurrent && list.length < eligibleCount && (
                   <div className="flex items-center gap-2 px-2.5 py-2 text-[12px] text-ink-quiet">
                     <Loader2 size={11} className="animate-spin" />
-                    等待剩余 {eligibleCount - list.length} 位成员表态…
+                    Waiting for {eligibleCount - list.length} more member{eligibleCount - list.length === 1 ? '' : 's'}…
                   </div>
                 )}
               </div>
@@ -469,33 +469,33 @@ function ActionLine({ action, deptMap }: { action: AgentAction; deptMap: Record<
           <span className="text-[12px] text-ink-muted">{verb}</span>
           {p.type === 'BID' && (
             <span className="text-[10.5px] font-mono text-ink-quiet">
-              能力 {p.capability_fit}/10 · 负载 {p.load_fit}/10
+              capability {p.capability_fit}/10 · load {p.load_fit}/10
             </span>
           )}
           {p.type === 'DEFER' && (
             <MemberInline name={p.recommend} dept={deptMap[p.recommend]} size="xs" emphasis />
           )}
           {p.type === 'COMMIT' && p.subtask && (
-            <span className="font-serif text-[12.5px] text-forest">「{p.subtask}」</span>
+            <span className="font-serif text-[12.5px] text-forest">&ldquo;{p.subtask}&rdquo;</span>
           )}
           {p.type === 'OBJECT' && p.against && (
-            <span className="font-serif text-[12.5px] text-rust">「{p.against}」</span>
+            <span className="font-serif text-[12.5px] text-rust">&ldquo;{p.against}&rdquo;</span>
           )}
           {p.type === 'RECOMMEND_SPLIT' && (
             <span className="text-[10.5px] font-mono text-ink-quiet">
-              {p.subtasks.length} 个子任务
+              {p.subtasks.length} subtask{p.subtasks.length === 1 ? '' : 's'}
             </span>
           )}
           {p.type === 'REFINED_BID' && (
             <span className="text-[10.5px] font-mono text-ink-quiet">
-              能力 {p.capability_fit}
+              capability {p.capability_fit}
               {p.delta_capability !== 0 && (
                 <span className={p.delta_capability > 0 ? 'text-forest ml-0.5' : 'text-rust ml-0.5'}>
                   ({p.delta_capability > 0 ? '+' : ''}
                   {p.delta_capability})
                 </span>
               )}{' '}
-              · 负载 {p.load_fit}
+              · load {p.load_fit}
               {p.delta_load !== 0 && (
                 <span className={p.delta_load > 0 ? 'text-forest ml-0.5' : 'text-rust ml-0.5'}>
                   ({p.delta_load > 0 ? '+' : ''}
@@ -553,18 +553,18 @@ function DecisionCard({
         <div>
           <div className="eyebrow mb-2 flex items-center gap-1.5">
             <Check size={11} className="text-forest" />
-            推演完成 · 最终建议
+            Simulation complete · final recommendation
           </div>
           {decomp && decomp.length > 0 ? (
             <h2 className="font-serif text-[28px] leading-tight text-ink">
-              建议拆为 <span className="text-coral-deep">{decomp.length}</span> 个子任务
+              Split into <span className="text-coral-deep">{decomp.length}</span> subtask{decomp.length === 1 ? '' : 's'}
             </h2>
           ) : d.top1 ? (
             <h2 className="font-serif text-[28px] leading-tight text-ink">
-              推荐分配给 <span className="text-coral-deep">{d.top1}</span>
+              Recommended for <span className="text-coral-deep">{d.top1}</span>
             </h2>
           ) : (
-            <h2 className="font-serif text-[28px] leading-tight text-ink-soft">无明确合适人选</h2>
+            <h2 className="font-serif text-[28px] leading-tight text-ink-soft">No clear owner</h2>
           )}
         </div>
         <div className="shrink-0">
@@ -603,13 +603,13 @@ function DecisionCard({
 
       <footer className="mt-4 pt-4 border-t border-rule-soft flex items-center gap-3">
         <Link href="/tasks" className="btn-ghost flex items-center gap-1.5">
-          返回任务列表
+          Back to tasks
         </Link>
         <button
           onClick={onSeeReplay}
           className="btn-ghost text-caption inline-flex items-center gap-1.5"
         >
-          查看完整推演 <ArrowRight size={12} />
+          View full simulation <ArrowRight size={12} />
         </button>
         {!accepted ? (
           <button
@@ -626,11 +626,11 @@ function DecisionCard({
             disabled={accepting}
             className="btn-coral inline-flex items-center gap-1.5 ml-auto"
           >
-            <Check size={13} /> {accepting ? '采纳中…' : '采纳此方案'}
+            <Check size={13} /> {accepting ? 'Accepting…' : 'Accept this plan'}
           </button>
         ) : (
           <span className="ml-auto text-caption text-forest inline-flex items-center gap-1.5">
-            <Check size={13} /> 已采纳
+            <Check size={13} /> Accepted
           </span>
         )}
       </footer>

@@ -48,11 +48,11 @@ export function RationaleBlock({ text, skipPick = false }: { text: string; skipP
   return (
     <div className="space-y-2.5">
       {!skipPick && r.pick && (
-        <Section icon={<Sparkles size={12} />} label="推荐" tone="coral" body={r.pick} />
+        <Section icon={<Sparkles size={12} />} label="Recommend" tone="coral" body={r.pick} />
       )}
-      {r.evidence && <Section icon={<Anchor size={12} />} label="关键论据" tone="ink" body={r.evidence} />}
-      {r.divergence && <Section icon={<GitBranch size={12} />} label="路径分歧" tone="muted" body={r.divergence} />}
-      {r.risks && <Section icon={<AlertTriangle size={12} />} label="风险提示" tone="amber" body={r.risks} />}
+      {r.evidence && <Section icon={<Anchor size={12} />} label="Key evidence" tone="ink" body={r.evidence} />}
+      {r.divergence && <Section icon={<GitBranch size={12} />} label="Path divergence" tone="muted" body={r.divergence} />}
+      {r.risks && <Section icon={<AlertTriangle size={12} />} label="Risks" tone="amber" body={r.risks} />}
     </div>
   );
 }

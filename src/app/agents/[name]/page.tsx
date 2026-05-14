@@ -4,18 +4,18 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, Activity, Sparkles, Shield, Target, Zap, Pencil, X, Cpu, type LucideIcon } from 'lucide-react';
 import { Avatar, MemberInline } from '../../../components/Avatar';
-import { ago } from '../../../components/utils';
+import { ago, deptLabel } from '../../../components/utils';
 import { EvolutionDiff } from '../../../components/EvolutionDiff';
 import { MeetingViewer } from '../../../components/MeetingViewer';
 import { useToast } from '../../../components/Toast';
 import type { TeamMemberProfile, Energy, Task, Department } from '@/types';
 
 const ENERGY_LABEL: Record<Energy, string> = {
-  high: '空闲',
-  normal: '平稳',
-  low: '忙碌',
-  burnt: '超载',
-  unknown: '未知'
+  high: 'Available',
+  normal: 'Steady',
+  low: 'Busy',
+  burnt: 'Overloaded',
+  unknown: 'Unknown'
 };
 
 const ENERGY_DOT: Record<Energy, string> = {
@@ -40,6 +40,10 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
   const [openMeeting, setOpenMeeting] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = `${decodedName} · Team · Rocket Team`;
+  }, [decodedName]);
+
+  useEffect(() => {
     void (async () => {
       try {
         const [pRes, tRes, aRes] = await Promise.all([
@@ -47,7 +51,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
           fetch('/api/tasks', { cache: 'no-store' }),
           fetch('/api/agents', { cache: 'no-store' })
         ]);
-        if (!pRes.ok) throw new Error(`成员档案未找到 (${pRes.status})`);
+        if (!pRes.ok) throw new Error(`Member profile not found (${pRes.status})`);
         const p = (await pRes.json()) as TeamMemberProfile;
         setProfile(p);
         if (tRes.ok) {
@@ -82,17 +86,17 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
   }, [tasks, decodedName]);
 
   if (loading)
-    return <div className="px-12 py-10 font-serif text-title text-ink-muted">加载中…</div>;
+    return <div className="px-12 py-10 font-serif text-title text-ink-muted">Loading…</div>;
 
   if (error || !profile)
     return (
       <div className="px-12 py-10 max-w-[1100px] mx-auto">
         <Link href="/agents" className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3">
-          <ArrowLeft size={12} /> 团队成员
+          <ArrowLeft size={12} /> Team
         </Link>
         <div className="card-surface border-rust p-6 max-w-md">
-          <div className="font-serif text-title text-rust mb-2">无法加载档案</div>
-          <p className="text-body text-ink-muted">{error ?? '未知错误'}</p>
+          <div className="font-serif text-title text-rust mb-2">Profile failed to load</div>
+          <p className="text-body text-ink-muted">{error ?? 'Unknown error'}</p>
         </div>
       </div>
     );
@@ -106,29 +110,43 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
           href="/agents"
           className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1"
         >
-          <ArrowLeft size={12} /> 团队成员
+          <ArrowLeft size={12} /> Team
         </Link>
-        <button
-          onClick={() => setCorrectionOpen(true)}
-          className="btn-ghost text-caption inline-flex items-center gap-1.5"
-          title="把这个画像跟真实情况对齐"
-        >
-          <Pencil size={11} /> 这个画像不准？修正
-        </button>
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/status/${encodeURIComponent(decodedName)}`}
+            className="text-caption link-coral inline-flex items-center gap-1"
+          >
+            <Activity size={11} /> View status
+          </Link>
+          <button
+            onClick={() => setCorrectionOpen(true)}
+            className="btn-ghost text-caption inline-flex items-center gap-1.5"
+            title="Align this profile with reality"
+          >
+            <Pencil size={11} /> Correct profile
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-rule bg-paper-subtle/60 px-4 py-2.5 mb-6 text-[12px] text-ink-muted">
+        This is the PMA profile used to simulate who&apos;d own a task (personality, capabilities, collaboration preferences) — a debug reference. To see what{' '}
+        <span className="text-ink">{decodedName}</span>&apos;s Claude Code is doing now, go to{' '}
+        <Link href={`/status/${encodeURIComponent(decodedName)}`} className="link-coral">Status</Link>.
       </div>
 
       {/* Hero */}
       <header className="flex items-start gap-6 mb-8">
         <Avatar name={profile.name} dept={profile.dept} size="xl" ringed />
         <div className="flex-1 min-w-0">
-          <div className="eyebrow mb-1.5">{profile.dept} · {profile.role}</div>
+          <div className="eyebrow mb-1.5">{deptLabel(profile.dept)} · {profile.role}</div>
           <h1 className="display-title">{profile.name}</h1>
         </div>
         <div className="grid grid-cols-3 gap-px bg-rule rounded-xl overflow-hidden border border-rule shrink-0">
-          <Mini label="状态" value={ENERGY_LABEL[energy]} dotClass={ENERGY_DOT[energy]} />
-          <Mini label="进行中" value={`${profile.workload?.active.length ?? 0}`} />
+          <Mini label="Status" value={ENERGY_LABEL[energy]} dotClass={ENERGY_DOT[energy]} />
+          <Mini label="In progress" value={`${profile.workload?.active.length ?? 0}`} />
           <Mini
-            label="画像更新"
+            label="Profile updates"
             value={`${profile._meta?.evolution_count ?? 0}`}
             sub={ago(profile._meta?.bootstrapped_at)}
           />
@@ -149,7 +167,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                 <div className="flex-1 min-w-0">
                   <div className="font-serif text-[17px] text-ink leading-tight">Claude Code</div>
                   <div className="text-[11.5px] font-mono text-ink-quiet leading-tight mt-0.5">
-                    Anthropic · claude-code · 实际承接者
+                    Anthropic · claude-code · execution owner
                   </div>
                 </div>
                 {(() => {
@@ -165,7 +183,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                       <div className="w-20 h-1 bg-paper-deep rounded-full overflow-hidden mt-1">
                         <div className={`h-full ${usageColor}`} style={{ width: `${usage}%` }} />
                       </div>
-                      <div className="text-[10px] text-ink-quiet font-mono mt-0.5">本月配额</div>
+                      <div className="text-[10px] text-ink-quiet font-mono mt-0.5">monthly quota</div>
                     </div>
                   );
                 })()}
@@ -173,7 +191,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
               {profile.agents.claude_code.current_tasks &&
                 profile.agents.claude_code.current_tasks.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-rule-soft">
-                    <div className="eyebrow text-coral mb-1">正在做</div>
+                    <div className="eyebrow text-coral mb-1">In flight</div>
                     <ul className="space-y-1">
                       {profile.agents.claude_code.current_tasks.map((t, i) => (
                         <li key={i} className="text-[13px] text-ink-soft leading-snug flex gap-2">
@@ -192,10 +210,10 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
       <div className="grid grid-cols-3 gap-5">
         {/* Left: Capabilities + Active work */}
         <div className="col-span-2 space-y-5">
-          <Card title="能力分布" icon={Target}>
+          <Card title="Capabilities" icon={Target}>
             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
               <div>
-                <div className="eyebrow mb-2">领域</div>
+                <div className="eyebrow mb-2">Domains</div>
                 {profile.capabilities?.domains?.length ? (
                   <ul className="space-y-1.5">
                     {profile.capabilities.domains.map((d) => (
@@ -203,11 +221,11 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-caption text-ink-quiet">证据不足</p>
+                  <p className="text-caption text-ink-quiet">Insufficient evidence</p>
                 )}
               </div>
               <div>
-                <div className="eyebrow mb-2">技能</div>
+                <div className="eyebrow mb-2">Skills</div>
                 {profile.capabilities?.skills?.length ? (
                   <ul className="space-y-1.5">
                     {profile.capabilities.skills.map((s) => (
@@ -215,28 +233,28 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-caption text-ink-quiet">证据不足</p>
+                  <p className="text-caption text-ink-quiet">Insufficient evidence</p>
                 )}
               </div>
             </div>
           </Card>
 
           <TasksCard
-            title="进行中的任务"
+            title="Active tasks"
             tasks={relatedTasks.filter((t) => t.status === 'predicted' || t.status === 'accepted' || t.status === 'overridden')}
             decodedName={decodedName}
-            emptyText="当前没有进行中的任务"
+            emptyText="No active tasks"
           />
 
           {profile.workload?.blocked_on?.length ? (
-            <Card title={`阻塞中 · ${profile.workload.blocked_on.length}`} icon={Shield}>
+            <Card title={`Blocked · ${profile.workload.blocked_on.length}`} icon={Shield}>
               <ul className="space-y-2.5">
                 {profile.workload.blocked_on.map((b, i) => (
                   <li key={i} className="flex items-start gap-2.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber mt-2 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="font-serif text-[14.5px] text-ink leading-snug">
-                        被 <span className="text-amber">{b.by}</span> 阻塞
+                        Blocked by <span className="text-amber">{b.by}</span>
                       </div>
                       {b.evidence?.[0]?.quote && (
                         <p className="text-[12.5px] text-ink-muted leading-relaxed quote-soft mt-1">
@@ -248,7 +266,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                           onClick={() => setOpenMeeting(b.evidence[0].source_id)}
                           className="text-[11px] text-ink-quiet hover:text-coral mt-1 inline-flex items-center gap-1"
                         >
-                          来源 · {b.evidence[0].source_id.replace(/\.txt$/, '').slice(0, 30)} <ArrowRight size={10} />
+                          Source · {b.evidence[0].source_id.replace(/\.txt$/, '').slice(0, 30)} <ArrowRight size={10} />
                         </button>
                       )}
                     </div>
@@ -259,17 +277,17 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
           ) : null}
 
           <TasksCard
-            title="过往完成的任务"
+            title="Past completed tasks"
             tasks={relatedTasks.filter((t) => t.status === 'completed')}
             decodedName={decodedName}
-            emptyText="尚无完成记录"
+            emptyText="No completed tasks yet"
             icon={Sparkles}
           />
         </div>
 
         {/* Right: agents + collab + trajectory + constraints */}
         <div className="space-y-5">
-          <Card title="主要合作人员" icon={Sparkles}>
+          <Card title="Frequent collaborators" icon={Sparkles}>
             {(() => {
               const collab = [
                 ...(profile.collab?.pairs_well_with ?? []),
@@ -288,12 +306,12 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                   ))}
                 </div>
               ) : (
-                <p className="text-caption text-ink-quiet">证据不足</p>
+                <p className="text-caption text-ink-quiet">Insufficient evidence</p>
               );
             })()}
           </Card>
 
-          <Card title="当前方向" icon={Zap}>
+          <Card title="Current focus" icon={Zap}>
             {profile.trajectory?.learning_focus?.length ? (
               <ul className="space-y-1">
                 {profile.trajectory.learning_focus.map((f, i) => (
@@ -303,13 +321,13 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                 ))}
               </ul>
             ) : (
-              <p className="text-caption text-ink-quiet">尚无明确方向证据</p>
+              <p className="text-caption text-ink-quiet">No clear focus signal yet</p>
             )}
-            <div className="mt-3 pt-3 border-t border-rule-soft">
-              <div className="eyebrow mb-1">MBTI</div>
-              <div className="text-[13.5px] text-ink font-mono tracking-wider">
-                {profile.mbti || '未测'}
-              </div>
+          </Card>
+
+          <Card title="MBTI" icon={Target}>
+            <div className="text-[18px] text-ink font-mono tracking-[0.2em]">
+              {profile.mbti || 'Untested'}
             </div>
           </Card>
 
@@ -321,7 +339,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
           ) : null}
 
           {profile.workload?.hard_constraints?.length ? (
-            <Card title="硬约束" icon={Shield}>
+            <Card title="Hard constraints" icon={Shield}>
               <ul className="space-y-1.5">
                 {profile.workload.hard_constraints.map((c, i) => (
                   <li key={i} className="text-[13px] text-ink-soft leading-snug">
@@ -353,16 +371,16 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
             <header className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="font-serif text-[18px] text-ink leading-tight">
-                  修正 {profile.name} 的画像
+                  Correct {profile.name}&apos;s profile
                 </h2>
                 <p className="text-caption text-ink-quiet leading-tight mt-0.5">
-                  描述真实情况的偏差，系统会预览要改的字段，等你确认后才落库
+                  Describe how reality differs. The system previews the field changes; nothing is written until you confirm.
                 </p>
               </div>
               <button
                 onClick={() => setCorrectionOpen(false)}
                 className="text-ink-quiet hover:text-ink"
-                aria-label="关闭"
+                aria-label="Close"
               >
                 <X size={16} />
               </button>
@@ -371,7 +389,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
               value={correctionText}
               onChange={(e) => setCorrectionText(e.target.value)}
               rows={6}
-              placeholder={`例如：${profile.name} 5/3 已经接手了 X 项目，画像里没体现 / 他不擅长 React，画像写得太乐观 / 实际上他和某同事合作不顺，不应该被标为 pairs_well_with`}
+              placeholder={`Examples: ${profile.name} took over project X on May 3 but the profile doesn't reflect it. / They're not strong in React; the profile is too optimistic. / They actually don't pair well with a teammate listed under pairs_well_with.`}
               className="w-full bg-paper-card border border-rule rounded-lg px-3 py-2.5 font-serif text-[14.5px] leading-relaxed text-ink outline-none resize-y placeholder:text-ink-quiet focus:border-coral-mute mb-3"
             />
             <div className="flex justify-end gap-2">
@@ -379,12 +397,12 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                 onClick={() => setCorrectionOpen(false)}
                 className="btn-ghost text-caption"
               >
-                取消
+                Cancel
               </button>
               <button
                 onClick={() => {
                   if (!correctionText.trim()) {
-                    toast.push('请描述偏差', 'error');
+                    toast.push('Describe the discrepancy first', 'error');
                     return;
                   }
                   setEvolveContext(correctionText);
@@ -392,7 +410,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
                 }}
                 className="btn-coral text-caption"
               >
-                预览改动
+                Preview changes
               </button>
             </div>
           </div>
@@ -408,7 +426,7 @@ export default function PersonDetailPage({ params }: { params: { name: string } 
           onApplied={() => {
             setEvolveContext(null);
             setCorrectionText('');
-            toast.push('画像已更新', 'success');
+            toast.push('Profile updated', 'success');
             void (async () => {
               const r = await fetch(`/api/agents/${encodeURIComponent(profile.name)}`, { cache: 'no-store' });
               if (r.ok) setProfile((await r.json()) as TeamMemberProfile);
@@ -463,10 +481,10 @@ function TasksCard({
             const subtask = d?.decomposition?.find((s) => s.assignee === decodedName)?.subtask;
             const role =
               t.override_to === decodedName
-                ? '改派后承接'
+                ? 'Took over after reassign'
                 : subtask
-                  ? `子任务「${subtask}」`
-                  : '主负责';
+                  ? `Subtask: ${subtask}`
+                  : 'Primary owner';
             return (
               <li
                 key={t.id}
@@ -504,7 +522,7 @@ function SourceFilesCard({ files, onOpen }: { files: string[]; onOpen: (f: strin
   const cleanLabel = (f: string) =>
     f.replace(/^(meeting|slack)\//, '').replace(/\.txt$/, '');
   return (
-    <Card title={`画像来源 · ${files.length}`} icon={Activity}>
+    <Card title={`Profile sources · ${files.length}`} icon={Activity}>
       <ul className="space-y-1.5">
         {files.slice(0, PREVIEW).map((f) => (
           <li key={f}>
@@ -522,7 +540,7 @@ function SourceFilesCard({ files, onOpen }: { files: string[]; onOpen: (f: strin
           onClick={() => setShowAll(true)}
           className="text-[11px] text-coral hover:text-coral-deep mt-2 inline-flex items-center gap-1"
         >
-          查看全部 {files.length} 条 <ArrowRight size={11} />
+          View all {files.length} <ArrowRight size={11} />
         </button>
       )}
       {showAll && (
@@ -535,8 +553,8 @@ function SourceFilesCard({ files, onOpen }: { files: string[]; onOpen: (f: strin
             onClick={(e) => e.stopPropagation()}
           >
             <header className="px-5 py-4 border-b border-rule flex items-center justify-between shrink-0">
-              <h3 className="font-serif text-[16px] text-ink">画像来源 · 全部 {files.length} 条</h3>
-              <button onClick={() => setShowAll(false)} className="text-ink-quiet hover:text-ink p-1" aria-label="关闭">
+              <h3 className="font-serif text-[16px] text-ink">Profile sources · all {files.length}</h3>
+              <button onClick={() => setShowAll(false)} className="text-ink-quiet hover:text-ink p-1" aria-label="Close">
                 <X size={16} />
               </button>
             </header>
@@ -593,7 +611,7 @@ function OwnedAgentRow({ agent }: { agent: NonNullable<TeamMemberProfile['agents
         {usage !== null && (
           <span
             className={`text-[10.5px] font-mono ${usage >= 80 ? 'text-rust' : usage >= 50 ? 'text-amber' : 'text-ink-muted'}`}
-            title={`本月配额 ${agent.quota_used_cny}/${agent.quota_limit_cny} 元`}
+            title={`Monthly quota ¥${agent.quota_used_cny}/${agent.quota_limit_cny}`}
           >
             {usage}%
           </span>
@@ -601,7 +619,7 @@ function OwnedAgentRow({ agent }: { agent: NonNullable<TeamMemberProfile['agents
       </div>
       {agent.current_tasks.length > 0 && (
         <div className="text-[12px] text-ink-soft leading-snug mb-1">
-          <span className="text-ink-quiet">当前：</span>
+          <span className="text-ink-quiet">Now: </span>
           {agent.current_tasks[0].description}
         </div>
       )}

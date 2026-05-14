@@ -50,6 +50,7 @@ export function MultiEvolutionPreview({
     errors: {}
   });
   const [applyingAll, setApplyingAll] = useState(false);
+
   const [applied, setApplied] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -70,7 +71,7 @@ export function MultiEvolutionPreview({
         });
         if (!res.ok || !res.body) {
           const err = (await res.json().catch(() => ({}))) as { error?: string };
-          setState((s) => ({ ...s, fatal: err.error ?? `请求失败 ${res.status}`, done: true }));
+          setState((s) => ({ ...s, fatal: err.error ?? `Request failed ${res.status}`, done: true }));
           return;
         }
         const reader = res.body.getReader();
@@ -166,12 +167,12 @@ export function MultiEvolutionPreview({
       >
         <header className="px-6 py-4 border-b border-rule flex items-start justify-between">
           <div>
-            <h2 className="font-serif text-[18px] text-ink leading-tight">画像更新预览</h2>
+            <h2 className="font-serif text-[18px] text-ink leading-tight">Profile update preview</h2>
             <p className="text-caption text-ink-quiet leading-tight mt-0.5">
-              系统已扫描所有相关成员。每条改动需你确认后才会写入画像。
+              The system has scanned every relevant member. Each change requires your confirmation before it&apos;s written.
             </p>
           </div>
-          <button onClick={onClose} className="text-ink-quiet hover:text-ink" aria-label="关闭">
+          <button onClick={onClose} className="text-ink-quiet hover:text-ink" aria-label="Close">
             <X size={16} />
           </button>
         </header>
@@ -184,10 +185,10 @@ export function MultiEvolutionPreview({
               <div className="text-[13px] text-ink-soft">
                 {state.current ? (
                   <>
-                    正在分析 <span className="font-serif text-ink">{state.current}</span> 的画像变化…
+                    Analyzing profile changes for <span className="font-serif text-ink">{state.current}</span>…
                   </>
                 ) : (
-                  '正在挑选受影响的成员…'
+                  'Selecting affected members…'
                 )}
               </div>
               <span className="ml-auto font-mono text-[11px] text-ink-quiet">
@@ -198,7 +199,7 @@ export function MultiEvolutionPreview({
             <>
               <Check size={14} className="text-forest" />
               <div className="text-[13px] text-ink-soft">
-                扫描完成 · {state.diffs.length} 位成员需要更新 · {state.noChange.length} 位无变化
+                Scan complete · {state.diffs.length} member{state.diffs.length === 1 ? '' : 's'} to update · {state.noChange.length} unchanged
               </div>
               {state.diffs.length > 0 && !allApplied && (
                 <button
@@ -206,11 +207,11 @@ export function MultiEvolutionPreview({
                   disabled={applyingAll}
                   className="btn-coral text-caption ml-auto"
                 >
-                  {applyingAll ? '应用中…' : `一键应用全部 (${state.diffs.length})`}
+                  {applyingAll ? 'Applying…' : `Apply all (${state.diffs.length})`}
                 </button>
               )}
               {allApplied && (
-                <span className="ml-auto text-[12px] text-forest font-medium">已全部应用</span>
+                <span className="ml-auto text-[12px] text-forest font-medium">All applied</span>
               )}
             </>
           )}
@@ -224,7 +225,7 @@ export function MultiEvolutionPreview({
 
           {state.diffs.length === 0 && state.done && !state.fatal && (
             <div className="text-body text-ink-muted">
-              没有成员的画像被这段内容影响。可以再贴入一段更具体的观察。
+              No member profiles were affected by this content. Try pasting a more specific observation.
             </div>
           )}
 
@@ -253,15 +254,15 @@ export function MultiEvolutionPreview({
                       {d.agent_name}
                     </div>
                     <div className="text-[11px] text-ink-quiet leading-tight mt-0.5">
-                      {d.human_summary.length > 0 ? d.human_summary[0] : `${d.patches.length} 处字段变化`}
+                      {d.human_summary.length > 0 ? d.human_summary[0] : `${d.patches.length} field change${d.patches.length === 1 ? '' : 's'}`}
                     </div>
                   </div>
                   <span className="text-[10.5px] font-mono text-ink-quiet shrink-0">
-                    {d.patches.length} 处变化
+                    {d.patches.length} change{d.patches.length === 1 ? '' : 's'}
                   </span>
                   {isApplied ? (
                     <span className="text-[11px] text-forest font-medium shrink-0 inline-flex items-center gap-1">
-                      <Check size={11} /> 已应用
+                      <Check size={11} /> Applied
                     </span>
                   ) : (
                     <button
@@ -271,7 +272,7 @@ export function MultiEvolutionPreview({
                       }}
                       className="btn-coral text-caption shrink-0"
                     >
-                      应用
+                      Apply
                     </button>
                   )}
                   {isOpen ? (
@@ -309,7 +310,7 @@ export function MultiEvolutionPreview({
 
           {state.done && state.noChange.length > 0 && (
             <div className="mt-4 pt-3 border-t border-rule-soft">
-              <div className="eyebrow mb-2">无变化 ({state.noChange.length})</div>
+              <div className="eyebrow mb-2">Unchanged ({state.noChange.length})</div>
               <div className="flex flex-wrap gap-1.5">
                 {state.noChange.map((n) => (
                   <span
@@ -339,7 +340,7 @@ function DiffRow({
   oldVal: unknown;
   newVal: unknown;
 }) {
-  const opLabel: Record<typeof op, string> = { add: '新增', replace: '替换', remove: '删除' };
+  const opLabel: Record<typeof op, string> = { add: 'add', replace: 'replace', remove: 'remove' };
   return (
     <div className="text-caption">
       <div className="font-mono text-ink-quiet mb-1">

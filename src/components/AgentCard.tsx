@@ -19,11 +19,11 @@ const ENERGY_DOT: Record<Energy, string> = {
 };
 
 const ENERGY_LABEL: Record<Energy, string> = {
-  high: '空闲',
-  normal: '平稳',
-  low: '忙碌',
-  burnt: '超载',
-  unknown: '未知'
+  high: 'Available',
+  normal: 'Steady',
+  low: 'Busy',
+  burnt: 'Overloaded',
+  unknown: 'Unknown'
 };
 
 export function AgentCard({ profile }: AgentCardProps) {
@@ -54,7 +54,7 @@ export function AgentCard({ profile }: AgentCardProps) {
             {!isStub && (
               <span
                 className="inline-flex items-center gap-1 text-[10.5px] text-ink-muted"
-                title={`状态 · ${ENERGY_LABEL[profile.energy?.current ?? 'unknown']}`}
+                title={`Status · ${ENERGY_LABEL[profile.energy?.current ?? 'unknown']}`}
               >
                 <span
                   className={cn('w-1.5 h-1.5 rounded-full', ENERGY_DOT[profile.energy?.current ?? 'unknown'])}
@@ -66,7 +66,7 @@ export function AgentCard({ profile }: AgentCardProps) {
             {profile.agents?.claude_code && (
               <span
                 className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-ink/90 text-paper"
-                title="拥有自己的 Claude Code agent"
+                title="Has their own Claude Code agent"
               >
                 <Cpu size={9} strokeWidth={2.4} />
                 Claude Code
@@ -86,7 +86,7 @@ export function AgentCard({ profile }: AgentCardProps) {
 
       {!isStub && activeTasks.length > 0 && (
         <div className="mb-3">
-          <div className="eyebrow mb-1.5">进行中</div>
+          <div className="eyebrow mb-1.5">In progress</div>
           <ul className="space-y-1">
             {activeTasks.slice(0, 3).map((t, i) => (
               <li key={i} className="text-[13.5px] text-ink-soft leading-snug flex gap-2">
@@ -100,7 +100,7 @@ export function AgentCard({ profile }: AgentCardProps) {
 
       {!isStub && domains.length > 0 && (
         <div className="mb-3">
-          <div className="eyebrow mb-1.5">擅长领域</div>
+          <div className="eyebrow mb-1.5">Domains</div>
           <div className="flex flex-wrap gap-1.5">
             {domains.slice(0, 5).map((d, i) => (
               <span
@@ -116,7 +116,7 @@ export function AgentCard({ profile }: AgentCardProps) {
 
       {!isStub && focus.length > 0 && (
         <div className="mb-3">
-          <div className="eyebrow mb-1.5">关注</div>
+          <div className="eyebrow mb-1.5">Focus</div>
           <div className="text-[12.5px] text-ink-muted leading-relaxed">
             {focus.slice(0, 4).map((t, i) => (
               <span key={i}>
@@ -131,13 +131,13 @@ export function AgentCard({ profile }: AgentCardProps) {
       {!isStub && (
         <footer className="pt-3 mt-3 border-t border-rule-soft flex items-center justify-between">
           <span className="text-[11px] font-mono text-ink-quiet">
-            画像更新 {profile._meta?.evolution_count ?? 0} 次 · {ago(profile._meta?.bootstrapped_at)}
+            {profile._meta?.evolution_count ?? 0} profile update{(profile._meta?.evolution_count ?? 0) === 1 ? '' : 's'} · {ago(profile._meta?.bootstrapped_at)}
           </span>
           <Link
             href={`/agents/${encodeURIComponent(profile.name)}`}
             className="text-[11px] font-medium text-coral hover:text-coral-deep transition-colors"
           >
-            查看详情 →
+            View details →
           </Link>
         </footer>
       )}

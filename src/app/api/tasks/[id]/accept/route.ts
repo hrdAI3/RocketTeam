@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTask, saveTask } from '@/lib/tasks';
 import { getState, updateState } from '@/lib/agents';
 import { appendTimelineEvent } from '@/lib/timeline';
+import { appendEvent } from '@/lib/events';
 import { getToken, postDM } from '@/lib/slack';
 import type { PMADecisionV2, EvidenceRef } from '@/types';
 
@@ -81,6 +82,15 @@ export async function POST(_req: NextRequest, { params }: Params): Promise<Respo
     task_id: task.id,
     agent_name: top1 ?? undefined,
     summary: `${task.id} 已采纳：${[...assignees].join('、') || '(未指派)'}`
+  });
+  // Mirror into the unified events stream so the Anomaly Engine sees accepts.
+  await appendEvent({
+    ts: now,
+    source: 'system',
+    type: 'task.accepted',
+    subject: { kind: 'task', ref: task.id },
+    actor: 'leader',
+    evidence: { fields: { assignees: [...assignees], top1: top1 ?? null } }
   });
 
   // Fire Slack DM to each assignee. Non-blocking — UI returns even if Slack fails.

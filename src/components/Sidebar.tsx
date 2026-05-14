@@ -5,34 +5,29 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import {
   Search,
-  Plus,
-  Users,
-  ListChecks,
+  Activity,
+  FolderKanban,
   Database,
   Settings,
-  Network,
-  X,
   Rocket,
   type LucideIcon
 } from 'lucide-react';
 import { cn } from './utils';
-import { useNewTask } from './NewTaskModal';
 
 interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  count?: number | undefined;
 }
 
-interface SidebarProps {
-  memberCount: number;
-}
-
-export function Sidebar({ memberCount }: SidebarProps) {
+export function Sidebar() {
   const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
-  const { open: openNewTask } = useNewTask();
+  const [modKey, setModKey] = useState('Ctrl');
+
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)) setModKey('⌘');
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -46,20 +41,21 @@ export function Sidebar({ memberCount }: SidebarProps) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const workspaceNav: NavItem[] = [
-    { href: '/agents', label: '成员', icon: Users, count: memberCount },
-    { href: '/tasks', label: '任务', icon: ListChecks },
-    { href: '/org', label: '组织架构', icon: Network },
-    { href: '/sources', label: '数据接入', icon: Database }
+  // Three things, flat. /status = the leader's daily glance. /tasks = the record
+  // of CLI-dispatched tasks + sim predictions. /sources = source config. No
+  // "deep" section, no Team (the PMA profiles still exist at /agents/<name> but
+  // they're a debug detail, not nav-worthy). Task dispatch is CLI-only.
+  const nav: NavItem[] = [
+    { href: '/status', label: 'Status', icon: Activity },
+    { href: '/tasks', label: 'Projects', icon: FolderKanban },
+    { href: '/sources', label: 'Sources', icon: Database }
   ];
-
-  const configureNav: NavItem[] = [{ href: '/settings', label: '设置', icon: Settings }];
 
   return (
     <>
       {/* Sticky on scroll: parent flex item + h-screen + sticky top-0 */}
-      <aside className="w-[252px] shrink-0 bg-paper-subtle border-r border-rule sticky top-0 self-start h-screen flex flex-col">
-        <div className="px-3 pt-4 pb-3 border-b border-rule">
+      <aside className="w-[240px] shrink-0 bg-paper-subtle border-r border-rule sticky top-0 self-start h-screen flex flex-col">
+        <div className="px-3 pt-5 pb-4 border-b border-rule">
           <div className="flex items-center gap-2.5 px-2">
             <div
               aria-hidden
@@ -69,7 +65,6 @@ export function Sidebar({ memberCount }: SidebarProps) {
             </div>
             <div className="min-w-0">
               <div className="font-serif text-[15px] leading-tight text-ink">Rocket Team</div>
-              <div className="text-[10.5px] font-mono text-ink-quiet tracking-wide">团队协作系统</div>
             </div>
           </div>
         </div>
@@ -80,71 +75,53 @@ export function Sidebar({ memberCount }: SidebarProps) {
             className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-sidebar text-ink-muted hover:bg-paper-deep transition-colors"
           >
             <Search size={14} />
-            <span>搜索</span>
+            <span>Search</span>
             <kbd className="ml-auto font-mono text-[10px] px-1.5 py-0.5 rounded bg-paper-card border border-rule text-ink-quiet">
-              ⌘K
-            </kbd>
-          </button>
-          <button
-            onClick={openNewTask}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-sidebar text-ink-muted hover:bg-paper-deep transition-colors"
-          >
-            <Plus size={14} />
-            <span>新任务</span>
-            <kbd className="ml-auto font-mono text-[10px] px-1.5 py-0.5 rounded bg-paper-card border border-rule text-ink-quiet">
-              ⌘N
+              {modKey} K
             </kbd>
           </button>
         </div>
 
-        <Section label="工作区" items={workspaceNav} pathname={pathname} />
-        <Section label="配置" items={configureNav} pathname={pathname} />
-
-        <div className="mt-auto px-5 py-4 border-t border-rule">
-          <p className="font-serif text-[13px] leading-snug text-ink-muted italic">
-            完成比完美更重要。
-          </p>
-          <p className="font-mono text-[9.5px] text-ink-quiet tracking-wide mt-1">
-            ROCKET TEAM
-          </p>
-        </div>
-      </aside>
-
-      {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
-    </>
-  );
-}
-
-function Section({ label, items, pathname }: { label: string; items: NavItem[]; pathname: string }) {
-  return (
-    <div className="px-2 py-3">
-      <div className="px-2.5 pb-1.5 eyebrow">{label}</div>
-      <ul className="space-y-0.5">
-        {items.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + '/');
-          const Icon = item.icon;
-          return (
-            <li key={item.href}>
+        <nav className="px-2 pt-3 space-y-0.5">
+          {nav.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + '/');
+            const Icon = item.icon;
+            return (
               <Link
+                key={item.href}
                 href={item.href}
                 className={cn(
-                  'w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-sidebar transition-colors',
+                  'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sidebar transition-colors',
                   active
                     ? 'bg-coral-subtle text-coral-deep font-semibold'
                     : 'text-ink-muted hover:bg-paper-deep hover:text-ink'
                 )}
               >
-                <Icon size={14} strokeWidth={active ? 2.4 : 2} />
+                <Icon size={15} strokeWidth={active ? 2.4 : 2} />
                 <span>{item.label}</span>
-                {typeof item.count === 'number' && (
-                  <span className="ml-auto font-mono text-[10px] text-ink-quiet">{item.count}</span>
-                )}
               </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto px-2 pb-3 pt-3 border-t border-rule">
+          <Link
+            href="/settings"
+            className={cn(
+              'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sidebar transition-colors',
+              pathname === '/settings'
+                ? 'bg-coral-subtle text-coral-deep font-semibold'
+                : 'text-ink-quiet hover:bg-paper-deep hover:text-ink'
+            )}
+          >
+            <Settings size={15} strokeWidth={2} />
+            <span>Settings</span>
+          </Link>
+        </div>
+      </aside>
+
+      {searchOpen && <SearchModal onClose={() => setSearchOpen(false)} />}
+    </>
   );
 }
 
@@ -255,20 +232,17 @@ function SearchModal({ onClose }: { onClose: () => void }) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索成员、任务、会议…"
+            placeholder="Search members, tasks, meetings…"
             className="flex-1 bg-transparent outline-none text-body text-ink placeholder:text-ink-quiet"
           />
           <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-paper border border-rule text-ink-quiet">
             esc
           </kbd>
-          <button onClick={onClose} aria-label="关闭" className="text-ink-quiet hover:text-ink">
-            <X size={16} />
-          </button>
         </div>
         <div className="max-h-[400px] overflow-y-auto">
-          {hits.length === 0 && (
+          {hits.length === 0 && query && (
             <div className="px-5 py-10 text-center text-caption text-ink-quiet">
-              {index === null ? '加载中…' : query ? '没有找到匹配' : '输入开始搜索'}
+              {index === null ? 'Loading…' : 'No matches'}
             </div>
           )}
           {hits.map((h, i) => {
@@ -296,7 +270,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
                         : 'bg-paper-subtle text-forest'
                   )}
                 >
-                  {h.type === 'member' ? '成员' : h.type === 'task' ? '任务' : '会议'}
+                  {h.type === 'member' ? 'MEMBER' : h.type === 'task' ? 'TASK' : 'MEETING'}
                 </span>
                 <span className="font-serif text-[14px] text-ink truncate flex-1">{h.label}</span>
                 {h.sub && (

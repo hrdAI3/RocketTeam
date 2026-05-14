@@ -26,7 +26,7 @@ export function ConfidenceExplainer({
       <button
         onClick={() => setOpen((v) => !v)}
         className={`text-right group ${color}`}
-        aria-label="置信度计算说明"
+        aria-label="How confidence is calculated"
       >
         <div className="font-serif text-[40px] leading-none flex items-baseline justify-end gap-1">
           {pct}
@@ -36,7 +36,7 @@ export function ConfidenceExplainer({
             className="ml-1 text-ink-quiet opacity-50 group-hover:opacity-100 transition-opacity"
           />
         </div>
-        <div className="eyebrow mt-1">置信度</div>
+        <div className="eyebrow mt-1">Confidence</div>
       </button>
 
       {open && (
@@ -45,55 +45,55 @@ export function ConfidenceExplainer({
           onClick={(e) => e.stopPropagation()}
         >
           <header className="flex items-baseline justify-between mb-3">
-            <h3 className="font-serif text-[15px] text-ink">置信度怎么算的</h3>
+            <h3 className="font-serif text-[15px] text-ink">How confidence is computed</h3>
             <button
               onClick={() => setOpen(false)}
               className="text-ink-quiet hover:text-ink"
-              aria-label="关闭"
+              aria-label="Close"
             >
               <X size={14} />
             </button>
           </header>
           <p className="text-[12.5px] text-ink-muted leading-relaxed mb-3">
-            两条推演路径独立跑完，按下面四个信号叠加：
+            Two simulation paths run independently. Four signals stack:
           </p>
           <ul className="space-y-2 mb-3">
             <Factor
               ok={trackAgree}
-              label="推演结果指向同一 top1 候选人"
-              detail={trackAgree ? '两路径选了同一人' : '两路径分歧 → 扣分'}
+              label="Both paths point to the same top-1 candidate"
+              detail={trackAgree ? 'Both paths agree' : 'Paths disagree → penalty'}
             />
             <Factor
               ok={converged}
-              label="第 3 轮所有人 COMMIT 或 DEFER，无 OBJECT"
-              detail={converged ? '已收敛' : '有反对未消解 → 扣分'}
+              label="Round 3: everyone COMMITs or DEFERs, no OBJECT"
+              detail={converged ? 'Converged' : 'Unresolved objection → penalty'}
             />
             <Factor
               ok={evidenceCount >= 5}
-              label={`引用证据 ≥ 5 条（实际 ${evidenceCount}）`}
+              label={`Evidence cited ≥ 5 (actual ${evidenceCount})`}
               detail={
                 evidenceCount >= 5
-                  ? '证据充分'
+                  ? 'Sufficient evidence'
                   : evidenceCount >= 3
-                    ? '证据偏少'
-                    : '证据严重不足 → 扣分'
+                    ? 'Light evidence'
+                    : 'Insufficient evidence → penalty'
               }
             />
             <Factor
               ok={pct >= 80}
-              label="所有信号同时满足"
-              detail={pct >= 80 ? '可信度高，建议直接采纳' : '可信度中等，建议人工确认'}
+              label="All signals satisfied at once"
+              detail={pct >= 80 ? 'High confidence — safe to accept' : 'Medium confidence — confirm manually'}
             />
           </ul>
           <div className="pt-3 border-t border-rule-soft">
             <div className="flex items-baseline justify-between">
-              <span className="text-caption text-ink-muted">本次综合</span>
+              <span className="text-caption text-ink-muted">Composite</span>
               <span className={`font-serif text-[24px] leading-none ${color}`}>{pct}%</span>
             </div>
           </div>
           <p className="text-[11px] text-ink-quiet mt-2 leading-relaxed">
-            注：当前打分是规则化的，不是 LLM 自由打分。规则定义见
-            <span className="font-mono text-ink"> src/report/agent.ts:computeConfidence</span>。
+            Note: scoring is rule-based, not free-form LLM scoring. Rule definitions in
+            <span className="font-mono text-ink"> src/report/agent.ts:computeConfidence</span>.
           </p>
         </div>
       )}

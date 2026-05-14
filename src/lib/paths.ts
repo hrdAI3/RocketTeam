@@ -30,7 +30,14 @@ export const PATHS = {
   contextOrg: resolve(process.env.CONTEXT_DIR ?? join(PRIVATE_ROOT, 'context'), 'org'),
   configs: resolve(join(PRIVATE_ROOT, 'configs')),
   resources: resolve(join(PRIVATE_ROOT, 'resources')),
-  simReplays: resolve(join(PRIVATE_ROOT, 'sim-replays'))
+  simReplays: resolve(join(PRIVATE_ROOT, 'sim-replays')),
+  events: resolve(process.env.EVENTS_FILE ?? join(PRIVATE_ROOT, 'events.jsonl')),
+  anomalies: resolve(process.env.ANOMALIES_FILE ?? join(PRIVATE_ROOT, 'anomalies.jsonl')),
+  anomaliesCurrent: resolve(
+    process.env.ANOMALIES_CURRENT_FILE ?? join(PRIVATE_ROOT, 'anomalies.current.json')
+  ),
+  identityMap: resolve(process.env.IDENTITY_MAP_FILE ?? join(PRIVATE_ROOT, 'identity.json')),
+  syncState: resolve(join(PRIVATE_ROOT, 'sync_state'))
 } as const;
 
 // safeJoin: join `name` onto `base` and verify the result still lives inside

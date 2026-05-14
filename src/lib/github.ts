@@ -92,7 +92,7 @@ export async function getToken(): Promise<string | null> {
   }
 }
 
-async function ghCall<T = unknown>(endpoint: string, token: string, params?: Record<string, string | number>): Promise<T> {
+export async function ghCall<T = unknown>(endpoint: string, token: string, params?: Record<string, string | number>): Promise<T> {
   const url = new URL(`https://api.github.com${endpoint}`);
   if (params) for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v));
   const res = await fetch(url.toString(), {

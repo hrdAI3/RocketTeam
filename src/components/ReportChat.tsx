@@ -113,17 +113,17 @@ export function ReportChat({ sim_id, task_id }: ReportChatProps) {
           'fixed bottom-6 right-6 z-40 rounded-full shadow-modal transition-all flex items-center gap-2 px-4 py-3',
           open ? 'bg-ink text-paper' : 'bg-coral text-white hover:bg-coral-deep'
         )}
-        aria-label={open ? '关闭对话' : '向 Report Agent 追问'}
+        aria-label={open ? 'Close chat' : 'Ask Report Agent'}
       >
         {open ? (
           <>
             <X size={16} />
-            <span className="text-[12px]">关闭</span>
+            <span className="text-[12px]">Close</span>
           </>
         ) : (
           <>
             <MessageSquare size={16} />
-            <span className="font-medium text-[13px]">向 Report Agent 追问</span>
+            <span className="font-medium text-[13px]">Ask Report Agent</span>
           </>
         )}
       </button>
@@ -133,7 +133,7 @@ export function ReportChat({ sim_id, task_id }: ReportChatProps) {
           <header className="px-4 py-3 border-b border-rule flex items-center justify-between">
             <div>
               <div className="font-serif text-[15px] text-ink">Report Agent</div>
-              <div className="text-[10px] font-mono text-ink-quiet">推演 · {sim_id.slice(-8)}</div>
+              <div className="text-[10px] font-mono text-ink-quiet">Simulation · {sim_id.slice(-8)}</div>
             </div>
           </header>
 
@@ -141,10 +141,10 @@ export function ReportChat({ sim_id, task_id }: ReportChatProps) {
             {history.length === 0 && (
               <div className="space-y-3 animate-fade-in">
                 <p className="font-serif text-ink-soft text-[14px] leading-relaxed quote-soft">
-                  我看完了本次推演的全部讨论。问我任何关于这次推演的问题。
+                  I&apos;ve read the full discussion from this simulation. Ask me anything about it.
                 </p>
                 <div className="space-y-1.5">
-                  <div className="eyebrow">建议提问</div>
+                  <div className="eyebrow">Suggested questions</div>
                   {SUGGESTED_QUESTIONS.map((q) => (
                     <button
                       key={q}
@@ -183,7 +183,7 @@ export function ReportChat({ sim_id, task_id }: ReportChatProps) {
                 }
               }}
               rows={1}
-              placeholder="问点什么…"
+              placeholder="Ask anything…"
               disabled={streaming}
               className="flex-1 bg-paper-card border border-rule rounded-md px-3 py-2 text-[13.5px] text-ink outline-none resize-none placeholder:text-ink-quiet font-serif"
             />
@@ -192,7 +192,7 @@ export function ReportChat({ sim_id, task_id }: ReportChatProps) {
               disabled={!input.trim() || streaming}
               className="btn-coral text-[13px] flex items-center gap-1"
             >
-              <Send size={12} /> 发送
+              <Send size={12} /> Send
             </button>
           </form>
         </div>

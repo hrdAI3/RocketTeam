@@ -51,16 +51,28 @@
     color: #5A5A57;
   }
   @media (max-width: 1023px) {
+    body {
+      overflow: hidden;
+    }
+    /* Replace the whole app with a single message — don't render the desktop
+       layout behind an overlay (it half-renders and looks broken). */
+    body > * {
+      display: none !important;
+    }
     body::before {
-      content: 'Demo viewing requires desktop (≥ 1024px)';
+      content: 'Rocket Team\AOpen on a desktop browser (≥ 1024px wide)';
+      white-space: pre-line;
       display: flex;
+      flex-direction: column;
+      gap: 8px;
       position: fixed;
       inset: 0;
       align-items: center;
       justify-content: center;
       background: #FAF9F5;
-      color: #1F1F1C;
-      font-size: 16px;
+      color: #5A5A57;
+      font-size: 15px;
+      line-height: 1.6;
       z-index: 9999;
       padding: 24px;
       text-align: center;

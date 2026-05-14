@@ -27,14 +27,14 @@ import { Avatar, MemberInline } from '../../components/Avatar';
 import type { TeamResource, ResourceType, Department } from '@/types';
 
 const TYPE_LABEL: Record<ResourceType, string> = {
-  account: '共享账号',
-  api_key: 'API Key',
-  license: '订阅 / 授权',
-  domain: '域名',
-  subscription: '工具订阅',
-  cloud: '云服务',
-  cert: '证书',
-  other: '其他'
+  account: 'Shared account',
+  api_key: 'API key',
+  license: 'License',
+  domain: 'Domain',
+  subscription: 'Subscription',
+  cloud: 'Cloud',
+  cert: 'Certificate',
+  other: 'Other'
 };
 
 const TYPE_ICON: Record<ResourceType, LucideIcon> = {
@@ -112,35 +112,35 @@ export default function ResourcesPage() {
         href="/sources"
         className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
       >
-        <ArrowLeft size={12} /> 数据接入
+        <ArrowLeft size={12} /> Sources
       </Link>
       <header className="flex items-end justify-between mb-8">
         <div className="max-w-2xl">
-          <div className="eyebrow mb-2">Rocket Team / 团队资源</div>
-          <h1 className="display-title">团队资源</h1>
+          <div className="eyebrow mb-2">Rocket Team / Resources</div>
+          <h1 className="display-title">Resources</h1>
           <p className="prose-warm text-body text-ink-muted mt-3">
-            团队共享的账号、API Key、订阅、域名、证书 —— 谁拥有、谁能用、什么时候续费、放在哪儿。
-            任务推演时 PMA 会查这里：发邮件用谁的 Gmail？跑实验用哪个 API key？
+            Shared accounts, API keys, subscriptions, domains, certificates — who owns them, who can use them, when they renew, where they live.
+            During simulation, PMA reads from here: whose Gmail sends the email? Which API key runs the experiment?
           </p>
         </div>
         <button onClick={() => setCreating(true)} className="btn-coral inline-flex items-center gap-1.5">
-          <Plus size={13} /> 添加资源
+          <Plus size={13} /> Add resource
         </button>
       </header>
 
       {/* Stats */}
       {resources && resources.length > 0 && (
         <section className="mb-6 grid grid-cols-3 gap-px bg-rule rounded-xl overflow-hidden border border-rule">
-          <Stat label="资源总数" value={resources.length} />
+          <Stat label="Resources" value={resources.length} />
           <Stat
-            label="月成本估算"
+            label="Monthly cost"
             value={monthlyCost > 0 ? `¥${monthlyCost.toLocaleString()}` : '—'}
             accent
           />
           <Stat
-            label="30 天内到期"
+            label="Expiring in 30 days"
             value={expiringSoon.length}
-            caption={expiringSoon.length > 0 ? '记得续费' : '暂无'}
+            caption={expiringSoon.length > 0 ? 'renew soon' : 'none'}
           />
         </section>
       )}
@@ -163,7 +163,7 @@ export default function ResourcesPage() {
                       : 'border-transparent text-ink-muted hover:text-ink'
                   }`}
                 >
-                  {f === 'all' ? '全部' : TYPE_LABEL[f as ResourceType]}
+                  {f === 'all' ? 'All' : TYPE_LABEL[f as ResourceType]}
                   <span
                     className={`ml-1 font-mono text-[10.5px] ${
                       active ? 'text-coral' : 'text-ink-quiet'
@@ -188,10 +188,10 @@ export default function ResourcesPage() {
 
       {resources && resources.length === 0 && (
         <div className="rounded-2xl border border-dashed border-rule p-12 text-center bg-paper-card">
-          <div className="font-serif text-title text-ink mb-2">尚无资源</div>
+          <div className="font-serif text-title text-ink mb-2">No resources yet</div>
           <p className="text-body text-ink-muted mb-6 max-w-md mx-auto">
-            点击右上角"添加资源"，把账号 / API Key / 截图 / 文档贴进来，
-            系统自动识别字段。
+            Click &ldquo;Add resource&rdquo; in the top right and paste in an account, API key, screenshot, or doc.
+            The system parses the fields automatically.
           </p>
         </div>
       )}
@@ -221,12 +221,12 @@ export default function ResourcesPage() {
           onSaved={() => {
             setCreating(false);
             setEditing(null);
-            toast.push('已保存', 'success');
+            toast.push('Saved', 'success');
             void refresh();
           }}
           onDelete={() => {
             setEditing(null);
-            toast.push('已删除', 'success');
+            toast.push('Deleted', 'success');
             void refresh();
           }}
         />
@@ -297,7 +297,7 @@ function ResourceRow({
             )}
             {resource.credential_encrypted !== undefined && (
               <span className="text-[10px] text-coral inline-flex items-center gap-0.5">
-                <Key size={9} /> 已存凭证
+                <Key size={9} /> credential stored
               </span>
             )}
           </div>
@@ -307,7 +307,7 @@ function ResourceRow({
           <div className="flex items-center gap-3 mt-2 flex-wrap text-[11px] text-ink-quiet">
             {resource.owners.length > 0 && (
               <div className="inline-flex items-center gap-1">
-                <span>负责人</span>
+                <span>Owners</span>
                 <div className="flex gap-1">
                   {resource.owners.slice(0, 3).map((n) => (
                     <MemberInline key={n} name={n} dept={deptMap[n]} size="xs" emphasis />
@@ -317,7 +317,7 @@ function ResourceRow({
             )}
             {resource.users_with_access.length > 0 && (
               <div className="inline-flex items-center gap-1">
-                <span>访问</span>
+                <span>Access</span>
                 <div className="flex -space-x-1">
                   {resource.users_with_access.slice(0, 5).map((n) => (
                     <Avatar key={n} name={n} dept={deptMap[n]} size="xs" />
@@ -329,11 +329,11 @@ function ResourceRow({
               </div>
             )}
             {resource.monthly_cost_cny !== undefined && resource.monthly_cost_cny > 0 && (
-              <span className="font-mono">¥{resource.monthly_cost_cny}/月</span>
+              <span className="font-mono">¥{resource.monthly_cost_cny}/mo</span>
             )}
             {resource.expires_at && (
               <span className={expiringSoon ? 'text-amber font-medium' : ''}>
-                {expiringSoon ? '即将到期 ' : '到期 '}
+                {expiringSoon ? 'expiring ' : 'expires '}
                 {resource.expires_at}
               </span>
             )}
@@ -394,7 +394,7 @@ function ResourceModal({
       });
       if (!res.ok) {
         const e = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(e.error ?? `解析失败 ${res.status}`);
+        throw new Error(e.error ?? `Parse failed ${res.status}`);
       }
       const data = (await res.json()) as {
         parsed: Partial<TeamResource>;
@@ -424,7 +424,7 @@ function ResourceModal({
     setRevealing(true);
     try {
       const res = await fetch(`/api/resources/${resource.id}/reveal`, { method: 'POST' });
-      if (!res.ok) throw new Error('无凭证或读取失败');
+      if (!res.ok) throw new Error('No credential, or read failed');
       const data = (await res.json()) as { credential: string };
       setRevealCred(data.credential);
     } catch (err) {
@@ -436,7 +436,7 @@ function ResourceModal({
 
   const save = async () => {
     if (!name.trim() || !vendor.trim()) {
-      setError('名称和提供方必填');
+      setError('Name and vendor are required');
       return;
     }
     setSaving(true);
@@ -461,7 +461,7 @@ function ResourceModal({
       });
       if (!res.ok) {
         const e = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(e.error ?? `保存失败 ${res.status}`);
+        throw new Error(e.error ?? `Save failed ${res.status}`);
       }
       onSaved();
     } catch (err) {
@@ -473,7 +473,7 @@ function ResourceModal({
 
   const remove = async () => {
     if (!resource) return;
-    if (!confirm(`确认删除「${resource.name}」？`)) return;
+    if (!confirm(`Delete "${resource.name}"?`)) return;
     await fetch(`/api/resources/${resource.id}`, { method: 'DELETE' });
     onDelete();
   };
@@ -492,7 +492,7 @@ function ResourceModal({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="px-5 py-4 border-b border-rule sticky top-0 bg-paper-card z-10 flex items-center justify-between">
-          <h2 className="font-serif text-[18px] text-ink">{isEdit ? '编辑资源' : '添加资源'}</h2>
+          <h2 className="font-serif text-[18px] text-ink">{isEdit ? 'Edit resource' : 'Add resource'}</h2>
           <button onClick={onClose} className="text-ink-quiet hover:text-ink">
             <X size={16} />
           </button>
@@ -501,15 +501,15 @@ function ResourceModal({
         <div className="p-5 space-y-4">
           {!isEdit && (
             <div className="rounded-lg border border-coral-mute bg-coral-subtle/30 p-3.5">
-              <div className="eyebrow text-coral mb-1.5">让 AI 自动识别</div>
+              <div className="eyebrow text-coral mb-1.5">Let AI auto-fill</div>
               <p className="text-[12.5px] text-ink-soft leading-snug mb-2">
-                贴入账号截图 OCR、密码本片段、邮件、聊天记录、发票…系统会自动识别字段。
+                Paste OCR from an account screenshot, a password manager export, an email, chat, or invoice — the system parses the fields.
               </p>
               <textarea
                 value={parseRaw}
                 onChange={(e) => setParseRaw(e.target.value)}
                 rows={3}
-                placeholder="粘贴原始文本…"
+                placeholder="Paste raw text…"
                 className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13px] outline-none resize-y placeholder:text-ink-quiet focus:border-coral-mute"
               />
               <div className="flex justify-end mt-2">
@@ -520,25 +520,25 @@ function ResourceModal({
                 >
                   {parsing ? (
                     <>
-                      <Loader2 size={11} className="animate-spin" /> 解析中…
+                      <Loader2 size={11} className="animate-spin" /> Parsing…
                     </>
                   ) : (
-                    'AI 识别 → 自动填表'
+                    'Parse with AI → fill form'
                   )}
                 </button>
               </div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="名称 *">
+            <Field label="Name *">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="如 公司 Gmail / OpenAI 生产 Key"
+                placeholder="e.g. Company Gmail / OpenAI prod key"
                 className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] outline-none focus:border-coral-mute"
               />
             </Field>
-            <Field label="类型 *">
+            <Field label="Type *">
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as ResourceType)}
@@ -554,19 +554,19 @@ function ResourceModal({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="提供方 / 厂商 *">
+            <Field label="Vendor *">
               <input
                 value={vendor}
                 onChange={(e) => setVendor(e.target.value)}
-                placeholder="如 Google / OpenAI / Apple / Cloudflare"
+                placeholder="e.g. Google / OpenAI / Apple / Cloudflare"
                 className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] outline-none focus:border-coral-mute"
               />
             </Field>
-            <Field label="标识（可见，非密）">
+            <Field label="Identifier (visible, non-secret)">
               <input
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="账号 / key 前缀 / 域名 / 证书 ID"
+                placeholder="Account / key prefix / domain / cert ID"
                 className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] font-mono outline-none focus:border-coral-mute"
               />
             </Field>
@@ -574,7 +574,7 @@ function ResourceModal({
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <span className="eyebrow">凭证 / Secret</span>
+              <span className="eyebrow">Credential / secret</span>
               {isEdit && resource?.credential_encrypted && !revealCred && !showCredInput && (
                 <button
                   onClick={() => void reveal()}
@@ -583,11 +583,11 @@ function ResourceModal({
                 >
                   {revealing ? (
                     <>
-                      <Loader2 size={11} className="animate-spin" /> 解密中…
+                      <Loader2 size={11} className="animate-spin" /> Decrypting…
                     </>
                   ) : (
                     <>
-                      <Eye size={11} /> 显示已存凭证
+                      <Eye size={11} /> Reveal stored credential
                     </>
                   )}
                 </button>
@@ -601,7 +601,7 @@ function ResourceModal({
                 <button
                   onClick={() => setRevealCred(null)}
                   className="ml-2 shrink-0 text-ink-quiet hover:text-ink"
-                  aria-label="隐藏"
+                  aria-label="Hide"
                 >
                   <EyeOff size={12} />
                 </button>
@@ -612,7 +612,7 @@ function ResourceModal({
                 type="password"
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}
-                placeholder={isEdit ? '只填写以更新现有凭证；留空保留原值' : '密码 / API key / 证书内容'}
+                placeholder={isEdit ? 'Fill to update; leave blank to keep current value' : 'Password / API key / cert content'}
                 className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13.5px] font-mono outline-none focus:border-coral-mute"
               />
             ) : (
@@ -620,16 +620,16 @@ function ResourceModal({
                 onClick={() => setShowCredInput(true)}
                 className="text-caption link-coral"
               >
-                {isEdit ? '更新凭证' : '填写凭证（可选）'}
+                {isEdit ? 'Update credential' : 'Add a credential (optional)'}
               </button>
             )}
             <p className="text-[11px] text-ink-quiet mt-1.5">
-              凭证使用 AES-256-GCM 加密保存到本地 <span className="font-mono">team/resources/</span>。
-              不会出现在列表 API 响应里。
+              Credentials are encrypted with AES-256-GCM and stored under <span className="font-mono">team/resources/</span>.
+              They never appear in the list API response.
             </p>
           </div>
 
-          <Field label="负责人（管理 + 续费）">
+          <Field label="Owners (manage + renew)">
             <MemberPicker
               all={members}
               deptMap={deptMap}
@@ -638,7 +638,7 @@ function ResourceModal({
             />
           </Field>
 
-          <Field label="可访问成员">
+          <Field label="Members with access">
             <MemberPicker
               all={members}
               deptMap={deptMap}
@@ -648,16 +648,16 @@ function ResourceModal({
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="月成本（人民币，可选）">
+            <Field label="Monthly cost (CNY, optional)">
               <input
                 type="number"
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
-                placeholder="如 200"
+                placeholder="e.g. 200"
                 className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] outline-none focus:border-coral-mute"
               />
             </Field>
-            <Field label="到期日期（可选）">
+            <Field label="Expires (optional)">
               <input
                 type="date"
                 value={expiresAt}
@@ -667,12 +667,12 @@ function ResourceModal({
             </Field>
           </div>
 
-          <Field label="备注">
+          <Field label="Notes">
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="额外说明：登录方式、2FA 在哪儿、紧急联系等"
+              placeholder="Extra context: login method, where 2FA lives, emergency contact, etc."
               className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13.5px] outline-none focus:border-coral-mute resize-y"
             />
           </Field>
@@ -687,21 +687,21 @@ function ResourceModal({
         <footer className="px-5 py-3 border-t border-rule-soft sticky bottom-0 bg-paper-card flex items-center justify-between">
           {isEdit ? (
             <button onClick={remove} className="text-caption text-rust hover:underline inline-flex items-center gap-1">
-              <Trash2 size={11} /> 删除
+              <Trash2 size={11} /> Delete
             </button>
           ) : (
             <span />
           )}
           <div className="flex gap-2">
             <button onClick={onClose} className="btn-ghost text-caption">
-              取消
+              Cancel
             </button>
             <button
               onClick={() => void save()}
               disabled={saving}
               className="btn-coral text-caption inline-flex items-center gap-1"
             >
-              {saving ? '保存中…' : isEdit ? '保存' : '添加'}
+              {saving ? 'Saving…' : isEdit ? 'Save' : 'Add'}
             </button>
           </div>
         </footer>
@@ -751,7 +751,7 @@ function MemberPicker({
               <button
                 onClick={() => onChange(selected.filter((x) => x !== n))}
                 className="text-coral-deep hover:text-coral"
-                aria-label="移除"
+                aria-label="Remove"
               >
                 <X size={9} strokeWidth={3} />
               </button>
@@ -762,7 +762,7 @@ function MemberPicker({
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="搜索成员…"
+        placeholder="Search members…"
         className="w-full px-3 py-2 text-[13px] bg-transparent outline-none"
       />
       {search.trim() && (
@@ -783,7 +783,7 @@ function MemberPicker({
               >
                 <Avatar name={m.name} dept={m.dept} size="xs" />
                 <span className="text-[13px] text-ink">{m.name}</span>
-                {checked && <span className="ml-auto text-[10px] text-coral">已选</span>}
+                {checked && <span className="ml-auto text-[10px] text-coral">selected</span>}
               </button>
             );
           })}

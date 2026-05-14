@@ -4,8 +4,6 @@ import { GeistMono } from 'geist/font/mono';
 import { Source_Serif_4 } from 'next/font/google';
 import { Sidebar } from '../components/Sidebar';
 import { ToastProvider } from '../components/Toast';
-import { NewTaskProvider } from '../components/NewTaskModal';
-import { listAgents } from '@/lib/agents';
 
 const sourceSerif = Source_Serif_4({
   subsets: ['latin'],
@@ -15,28 +13,19 @@ const sourceSerif = Source_Serif_4({
 });
 
 export const metadata = {
-  title: 'Rocket Team · 团队协作分工',
-  description: '通过 agent 推演团队成员对每项任务的协作意见，把任务最终分给真人。'
+  title: 'Status · Rocket Team',
+  description: 'Team Claude Code activity and anomaly monitor.'
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  let agentCount = 0;
-  try {
-    const names = await listAgents();
-    agentCount = names.length;
-  } catch {
-    agentCount = 0;
-  }
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" className={`${GeistSans.variable} ${GeistMono.variable} ${sourceSerif.variable}`}>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${sourceSerif.variable}`}>
       <body className="font-sans bg-paper">
         <ToastProvider>
-          <NewTaskProvider>
-            <div className="flex min-h-screen">
-              <Sidebar memberCount={agentCount} />
-              <main className="flex-1 min-w-0 relative">{children}</main>
-            </div>
-          </NewTaskProvider>
+          <div className="flex min-h-screen">
+            <Sidebar />
+            <main className="flex-1 min-w-0 relative">{children}</main>
+          </div>
         </ToastProvider>
       </body>
     </html>

@@ -1,109 +1,84 @@
-import { Cog, Cpu, Database, Lock, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+
+export const metadata = { title: 'Settings · Rocket Team' };
 
 export default function SettingsPage() {
   const minimaxKeySet = Boolean(process.env.MINIMAX_API_KEY);
 
   return (
-    <div className="px-12 py-10 max-w-[1100px] mx-auto">
+    <div className="px-12 py-10 max-w-[900px] mx-auto">
       <div className="mb-8">
-        <div className="eyebrow mb-1">Rocket Team / 设置</div>
-        <h1 className="display-title">设置</h1>
-        <p className="prose-warm text-body text-ink-muted mt-3 max-w-2xl">
-          模型、数据源、权限的当前状态。
-        </p>
+        <div className="eyebrow mb-2">Rocket Team / Settings</div>
+        <h1 className="display-title">Settings</h1>
+        <p className="prose-warm text-body text-ink-muted mt-3 max-w-2xl">Current state of model, sources, and permissions.</p>
       </div>
 
-      <section className="mb-6">
-        <div className="card-surface p-5">
-          <header className="flex items-start gap-3 mb-4">
-            <div className="w-9 h-9 rounded-md bg-paper-subtle flex items-center justify-center text-ink-muted shrink-0">
-              <Cpu size={18} />
-            </div>
-            <div>
-              <h2 className="font-serif text-[18px] text-ink leading-tight">推理模型</h2>
-              <p className="text-caption text-ink-quiet mt-0.5">
-                PMA 与每位成员的画像 agent 都调用此模型
-              </p>
-            </div>
-          </header>
-
-          <div className="rounded-lg bg-paper-subtle/60 border border-rule-soft p-4">
-            <div className="flex items-baseline justify-between mb-1">
-              <span className="font-serif text-[18px] text-ink">MiniMax-M2.7</span>
-              <span
-                className={`inline-flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded ${
-                  minimaxKeySet ? 'bg-forest/10 text-forest' : 'bg-rust/10 text-rust'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${minimaxKeySet ? 'bg-forest' : 'bg-rust'}`} />
-                {minimaxKeySet ? '已配置' : '未配置 — 系统不可用'}
-              </span>
-            </div>
-            <p className="text-[12.5px] text-ink-muted leading-relaxed">
-              OpenAI 兼容端点 · 默认 temperature 0.4 · 推理模型，输出含 <code className="font-mono text-ink">&lt;think&gt;</code> 反思块。
-              密钥从 <span className="font-mono text-ink">.env</span> 中的 <span className="font-mono text-ink">MINIMAX_API_KEY</span> 读取。
-            </p>
+      {/* Reasoning model — flat, no card-in-card, no decorative icon */}
+      <section className="mb-7">
+        <div className="eyebrow mb-2">Reasoning model</div>
+        <div className="rounded-xl border border-rule bg-paper-card p-5">
+          <div className="flex items-baseline justify-between mb-1.5">
+            <span className="font-serif text-[18px] text-ink">MiniMax-M2.7</span>
+            <span
+              className={`inline-flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded ${
+                minimaxKeySet ? 'bg-forest/10 text-forest' : 'bg-rust/10 text-rust'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${minimaxKeySet ? 'bg-forest' : 'bg-rust'}`} />
+              {minimaxKeySet ? 'Configured' : 'Not configured — system unavailable'}
+            </span>
           </div>
-
+          <p className="text-[12.5px] text-ink-muted leading-relaxed">
+            PMA and every per-member profile agent call this model. OpenAI-compatible endpoint · default temperature 0.4 · output includes a{' '}
+            <code className="font-mono text-ink">&lt;think&gt;</code> reflection block. Key is read from{' '}
+            <code className="font-mono text-ink">MINIMAX_API_KEY</code> in <code className="font-mono text-ink">.env</code>.
+          </p>
           {!minimaxKeySet && (
             <div className="mt-4 px-3 py-2.5 rounded-md bg-rust/10 border border-rust/30 text-[13px] text-ink-soft flex items-start gap-2">
               <AlertTriangle size={14} className="text-rust mt-0.5 shrink-0" />
               <div>
-                未检测到模型密钥。请在 <span className="font-mono">.env</span> 中填
-                <span className="font-mono"> MINIMAX_API_KEY</span> 后重启。
+                No model key detected. Set <span className="font-mono">MINIMAX_API_KEY</span> in{' '}
+                <span className="font-mono">.env</span> and restart.
               </div>
             </div>
           )}
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-4 mb-6">
-        <Card
-          icon={Database}
-          title="数据源"
-          body={
-            <>
-              当前画像来自 <span className="font-mono text-ink">team/context/</span> 中的 10 份会议纪要 + 组织架构。
-              在 <a href="/sources" className="link-coral mx-1">数据接入</a>页连接 Slack / GitHub
-              后，画像会随真实工作流持续演化。
-            </>
-          }
-        />
-        <Card
-          icon={Lock}
-          title="权限"
-          body="改派权、画像更新审核阈值、审计日志保留期 —— v1 上线工作区角色后开放。"
-        />
-        <Card
-          icon={Cog}
-          title="工作区"
-          body={
-            <>
-              单工作区。组织架构硬编码在
-              <span className="font-mono text-ink"> team/context/org/组织架构.txt</span>
-              。多工作区与 SSO 在 v1。
-            </>
-          }
-        />
-        <Card
-          icon={AlertTriangle}
-          title="已知限制"
-          body="所有数据存在本地 JSON 文件中（无数据库）；无身份认证；浏览器最低宽度 1024px。生产化在 v1 完成。"
-        />
+      {/* Facts — plain label-value rows, no icon decoration, no cards */}
+      <section>
+        <div className="eyebrow mb-2">Current state</div>
+        <dl className="rounded-xl border border-rule overflow-hidden divide-y divide-rule">
+          <Row
+            term="Sources"
+            desc={
+              <>
+                Profiles are built from Meetings + the org chart under <code className="font-mono text-ink">team/context/</code>. After connecting Slack / GitHub in{' '}
+                <a href="/sources" className="link-coral">Sources</a>, profiles evolve with real work signals.
+              </>
+            }
+          />
+          <Row term="Permissions" desc="Reassign rights, profile-update review thresholds, audit-log retention — opens once workspace roles ship in v1." />
+          <Row
+            term="Workspace"
+            desc={
+              <>
+                Single workspace. Org chart is hard-coded in <code className="font-mono text-ink">team/context/org/组织架构.txt</code>. Multi-workspace and SSO ship in v1.
+              </>
+            }
+          />
+          <Row term="Known limits" desc="All data stored in local JSON files (no database). No auth. Minimum browser width 1024 px. Production hardening lands in v1." />
+        </dl>
       </section>
-
     </div>
   );
 }
 
-function Card({ icon: Icon, title, body }: { icon: typeof Cog; title: string; body: React.ReactNode }) {
+function Row({ term, desc }: { term: string; desc: React.ReactNode }) {
   return (
-    <div className="card-surface p-4">
-      <header className="flex items-center gap-2 mb-2">
-        <Icon size={14} className="text-coral" strokeWidth={2.4} />
-        <h3 className="font-serif text-[16px] text-ink">{title}</h3>
-      </header>
-      <p className="text-caption text-ink-muted leading-relaxed">{body}</p>
+    <div className="bg-paper-card px-5 py-3.5 flex flex-col md:flex-row md:items-baseline gap-1 md:gap-4">
+      <dt className="text-[13px] font-serif text-ink shrink-0 md:w-24">{term}</dt>
+      <dd className="text-[13px] text-ink-muted leading-relaxed">{desc}</dd>
     </div>
   );
 }

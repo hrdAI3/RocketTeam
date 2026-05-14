@@ -89,10 +89,10 @@ export default function GithubOnboardPage() {
       });
       const d = (await res.json()) as { ok?: boolean; login?: string; error?: string };
       if (!res.ok || !d.ok) {
-        toast.push(d.error ?? `验证失败 ${res.status}`, 'error');
+        toast.push(d.error ?? `Verification failed ${res.status}`, 'error');
         return;
       }
-      toast.push(`已连接 GitHub @${d.login}`, 'success');
+      toast.push(`Connected to GitHub @${d.login}`, 'success');
       const sRes = await fetch('/api/github/status', { cache: 'no-store' });
       setStatus((await sRes.json()) as Status);
       setPat('');
@@ -103,17 +103,17 @@ export default function GithubOnboardPage() {
   };
 
   const disconnect = async () => {
-    if (!confirm('确认断开 GitHub？已同步的 PR 文件不会删除。')) return;
+    if (!confirm('Disconnect GitHub? Already-synced PR files will be kept.')) return;
     await fetch('/api/github/disconnect', { method: 'POST' });
     setStatus({ connected: false });
     setRepos(null);
     setSelected(new Set());
-    toast.push('已断开', 'success');
+    toast.push('Disconnected', 'success');
   };
 
   const sync = async () => {
     if (selected.size === 0 || !repos) {
-      toast.push('请先选择仓库', 'error');
+      toast.push('Select a repo first', 'error');
       return;
     }
     setSyncing(true);
@@ -132,9 +132,9 @@ export default function GithubOnboardPage() {
       const total = (d.written ?? []).reduce((a, w) => a + w.prs, 0);
       const okN = d.written?.length ?? 0;
       const errN = d.errors?.length ?? 0;
-      if (okN > 0 && errN === 0) toast.push(`同步完成 · ${okN} 仓库 · ${total} 个 PR`, 'success');
-      else if (okN > 0) toast.push(`部分成功：${okN} 仓库完成，${errN} 失败`, 'default');
-      else toast.push(`全部 ${errN} 仓库同步失败`, 'error');
+      if (okN > 0 && errN === 0) toast.push(`Sync complete · ${okN} repo${okN === 1 ? '' : 's'} · ${total} PR${total === 1 ? '' : 's'}`, 'success');
+      else if (okN > 0) toast.push(`Partial success: ${okN} done, ${errN} failed`, 'default');
+      else toast.push(`All ${errN} repo${errN === 1 ? '' : 's'} failed to sync`, 'error');
       const sRes = await fetch('/api/github/status', { cache: 'no-store' });
       setStatus((await sRes.json()) as Status);
     } finally {
@@ -164,7 +164,7 @@ export default function GithubOnboardPage() {
         href="/sources"
         className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
       >
-        <ArrowLeft size={12} /> 数据接入
+        <ArrowLeft size={12} /> Sources
       </Link>
 
       <header className="flex items-start gap-4 mb-8">
@@ -172,17 +172,17 @@ export default function GithubOnboardPage() {
           <Github size={24} strokeWidth={1.8} className="text-ink" />
         </div>
         <div className="flex-1">
-          <div className="eyebrow mb-1">Rocket Team / 数据接入 / GitHub</div>
-          <h1 className="display-title">{status?.connected ? `已接入 @${status.login}` : '接入 GitHub'}</h1>
+          <div className="eyebrow mb-1">Rocket Team / Sources / GitHub</div>
+          <h1 className="display-title">{status?.connected ? `Connected as @${status.login}` : 'Connect GitHub'}</h1>
           <p className="prose-warm text-body text-ink-muted mt-2 max-w-2xl">
             {status?.connected
-              ? '系统会拉取你选择的仓库的最近 PR + Issue + Code Review 作为画像证据。'
-              : '在 GitHub 创建一个 PAT（Personal Access Token），粘进来即可。读取 PR / Issue / Code Review。'}
+              ? 'The system pulls recent PRs, issues, and code reviews from your selected repos as profile evidence.'
+              : 'Create a PAT (Personal Access Token) on GitHub and paste it here. Reads PRs, issues, and code reviews.'}
           </p>
         </div>
         {status?.connected && (
           <button onClick={disconnect} className="btn-ghost text-caption shrink-0">
-            断开
+            Disconnect
           </button>
         )}
       </header>
@@ -190,18 +190,18 @@ export default function GithubOnboardPage() {
       {!status?.connected ? (
         <section className="card-surface p-5">
           <header className="mb-3">
-            <h2 className="font-serif text-[17px] text-ink leading-tight">粘贴 PAT</h2>
+            <h2 className="font-serif text-[17px] text-ink leading-tight">Paste your PAT</h2>
             <p className="text-caption text-ink-quiet mt-0.5">
-              在 GitHub 设置 → Developer settings → Personal access tokens 创建。最小权限：
-              <span className="font-mono mx-1">repo</span> (公私仓) +
-              <span className="font-mono mx-1">read:org</span> (org 信息)。
+              On GitHub: Settings → Developer settings → Personal access tokens. Minimum scopes:
+              <span className="font-mono mx-1">repo</span> (public + private) +
+              <span className="font-mono mx-1">read:org</span> (org info).
               <a
                 href="https://github.com/settings/tokens/new?scopes=repo,read:org&description=Rocket%20Team"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="link-coral inline-flex items-center gap-0.5 ml-1"
               >
-                打开创建页 <ExternalLink size={10} />
+                Open creation page <ExternalLink size={10} />
               </a>
             </p>
           </header>
@@ -210,7 +210,7 @@ export default function GithubOnboardPage() {
               type="password"
               value={pat}
               onChange={(e) => setPat(e.target.value)}
-              placeholder="ghp_... 或 github_pat_..."
+              placeholder="ghp_... or github_pat_..."
               className="flex-1 font-mono text-[12.5px] bg-paper-card border border-rule rounded-md px-3 py-2 text-ink outline-none focus:border-coral-mute"
             />
             <button
@@ -220,10 +220,10 @@ export default function GithubOnboardPage() {
             >
               {verifying ? (
                 <>
-                  <Loader2 size={12} className="animate-spin" /> 验证中…
+                  <Loader2 size={12} className="animate-spin" /> Verifying…
                 </>
               ) : (
-                '连接'
+                'Connect'
               )}
             </button>
           </div>
@@ -231,17 +231,17 @@ export default function GithubOnboardPage() {
       ) : (
         <section>
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="font-serif text-title text-ink">仓库列表</h2>
+            <h2 className="font-serif text-title text-ink">Repos</h2>
             <div className="flex items-center gap-2">
               <span className="text-caption text-ink-quiet">
-                已选 <span className="font-mono text-ink">{selected.size}</span> / {repos?.length ?? '?'}
+                <span className="font-mono text-ink">{selected.size}</span> / {repos?.length ?? '?'} selected
               </span>
               <button
                 onClick={() => void loadRepos()}
                 disabled={reposLoading}
                 className="btn-ghost text-caption inline-flex items-center gap-1"
               >
-                <RefreshCw size={11} className={reposLoading ? 'animate-spin' : ''} /> 刷新
+                <RefreshCw size={11} className={reposLoading ? 'animate-spin' : ''} /> Refresh
               </button>
             </div>
           </div>
@@ -259,7 +259,7 @@ export default function GithubOnboardPage() {
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="搜索仓库…"
+                placeholder="Search repos…"
                 className="w-full mb-3 px-3 py-2 bg-paper-card border border-rule rounded-md text-[13.5px] outline-none focus:border-coral-mute"
               />
               <div className="rounded-lg border border-rule bg-paper-subtle/30 p-2 max-h-[420px] overflow-y-auto">
@@ -308,7 +308,7 @@ export default function GithubOnboardPage() {
               </div>
               <div className="flex items-center justify-between mt-3">
                 <span className="text-caption text-ink-quiet">
-                  {status.last_sync_at && `上次同步 ${status.last_sync_at.slice(0, 16).replace('T', ' ')}`}
+                  {status.last_sync_at && `Last synced ${status.last_sync_at.slice(0, 16).replace('T', ' ')}`}
                 </span>
                 <button
                   onClick={() => void sync()}
@@ -317,10 +317,10 @@ export default function GithubOnboardPage() {
                 >
                   {syncing ? (
                     <>
-                      <Loader2 size={12} className="animate-spin" /> 同步中…
+                      <Loader2 size={12} className="animate-spin" /> Syncing…
                     </>
                   ) : (
-                    '同步过去 30 天 PR'
+                    'Sync the last 30 days'
                   )}
                 </button>
               </div>

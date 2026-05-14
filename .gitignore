@@ -16,6 +16,9 @@ tsconfig.tsbuildinfo
 # Local Claude Code settings
 .claude/
 
+# Teamagent local runtime state (knowledge db, recording memory, locks)
+.teamagent/
+
 # Confidential data layer. ALL real meeting transcripts, org chart, generated
 # personal-agent profiles, runtime task/sim state, encrypted credentials, and
 # real-name source-data shims live under team/private/. Never committed.
@@ -42,3 +45,4 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+.gstack/

@@ -64,10 +64,10 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
             )}
             <span className="text-[11px] text-ink-quiet">{ago(task.created_at)}</span>
             {task.deadline && (
-              <span className="text-[11px] text-ink-quiet">· 死线 {task.deadline}</span>
+              <span className="text-[11px] text-ink-quiet">· due {task.deadline}</span>
             )}
             {task.estimated_effort_days !== undefined && (
-              <span className="text-[11px] text-ink-quiet">· {task.estimated_effort_days} 人天</span>
+              <span className="text-[11px] text-ink-quiet">· {task.estimated_effort_days} person-day{task.estimated_effort_days === 1 ? '' : 's'}</span>
             )}
           </div>
           <h3 className="font-serif text-[18px] leading-snug text-ink">{task.description}</h3>
@@ -78,8 +78,8 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
         <div className="rounded-lg bg-coral-subtle/40 border border-coral-mute p-4 mb-3 flex items-start gap-3 animate-pulse-coral">
           <Loader2 size={16} className="text-coral animate-spin mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <div className="font-serif text-[14.5px] text-ink mb-1">PMA 推演中…</div>
-            <div className="text-[12px] text-ink-muted">系统正在挑选候选成员、跑多轮讨论。</div>
+            <div className="font-serif text-[14.5px] text-ink mb-1">PMA simulating…</div>
+            <div className="text-[12px] text-ink-muted">The system is selecting candidates and running multiple rounds.</div>
           </div>
         </div>
       ) : top1 && decision ? (
@@ -103,7 +103,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
       ) : decision ? (
         <div className="rounded-lg bg-paper-subtle border border-rule p-4 mb-3">
           <p className="text-body text-ink">
-            <span className="font-semibold">推演完成但无明确人选。</span> {decision.rationale}
+            <span className="font-semibold">Simulation complete; no clear owner.</span> {decision.rationale}
           </p>
         </div>
       ) : null}
@@ -114,7 +114,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
             href={`/sim/${(decision as PMADecisionV2).sim_replay_id}`}
             className="text-caption text-coral hover:text-coral-deep transition-colors flex items-center gap-1"
           >
-            <ArrowRight size={12} /> 查看推演过程
+            <ArrowRight size={12} /> View simulation
           </a>
         )}
         {decision !== null && !v2 && (
@@ -123,7 +123,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
             className="flex items-center gap-1 text-caption text-ink-muted hover:text-ink"
           >
             {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            {(decision as PMADecision).all_responses?.length ?? 0} 位成员的回应
+            {(decision as PMADecision).all_responses?.length ?? 0} member response{((decision as PMADecision).all_responses?.length ?? 0) === 1 ? '' : 's'}
           </button>
         )}
         {decision === null && task.sim_id && (
@@ -131,7 +131,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
             href={`/live/${task.sim_id}`}
             className="text-caption text-coral hover:text-coral-deep transition-colors flex items-center gap-1"
           >
-            <ArrowRight size={12} /> 实时查看推演
+            <ArrowRight size={12} /> Watch simulation live
           </a>
         )}
 
@@ -151,9 +151,9 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
                   setShowConfirm(true);
                 }}
                 value=""
-                aria-label="改派负责人"
+                aria-label="Reassign owner"
               >
-                <option value="">改派</option>
+                <option value="">Reassign</option>
                 {agentChoices
                   .filter((a) => a !== top1)
                   .map((a) => (
@@ -176,18 +176,18 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
               disabled={accepting || !onAccept}
               className="btn-coral text-caption flex items-center gap-1 disabled:opacity-60"
             >
-              <Check size={12} /> {accepting ? '采纳中…' : '采纳'}
+              <Check size={12} /> {accepting ? 'Accepting…' : 'Accept'}
             </button>
           </>
         )}
         {status === 'accepted' && (
           <span className="ml-auto text-caption text-forest inline-flex items-center gap-1">
-            <Check size={12} /> 已采纳
+            <Check size={12} /> Accepted
           </span>
         )}
         {status === 'overridden' && task.override_to && (
           <span className="ml-auto text-caption text-amber inline-flex items-center gap-1">
-            已改派 → <MemberInline name={task.override_to} dept={deptMap[task.override_to]} size="xs" emphasis />
+            Reassigned → <MemberInline name={task.override_to} dept={deptMap[task.override_to]} size="xs" emphasis />
           </span>
         )}
       </div>
@@ -199,13 +199,13 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
             <RefreshCw size={13} className="text-amber mt-1 shrink-0" />
             <div className="flex-1">
               <div className="text-body text-ink">
-                确认把任务从{' '}
-                <MemberInline name={top1} dept={deptMap[top1]} size="xs" /> 改派给{' '}
+                Reassign this task from{' '}
+                <MemberInline name={top1} dept={deptMap[top1]} size="xs" /> to{' '}
                 <MemberInline name={overrideTarget} dept={deptMap[overrideTarget]} size="xs" emphasis />
-                ？
+                ?
               </div>
               <div className="text-caption text-ink-quiet mt-1">
-                这次改派会写入审计日志，并作为画像更新的强信号反馈到双方画像。
+                The reassign is written to the audit log and fed back to both profiles as a strong signal.
               </div>
             </div>
           </div>
@@ -213,7 +213,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
             value={overrideReason}
             onChange={(e) => setOverrideReason(e.target.value)}
             rows={2}
-            placeholder="改派原因（可选，但建议简短说明）"
+            placeholder="Reason (optional, but a short note helps)"
             className="w-full bg-paper-card border border-rule rounded-md px-2.5 py-1.5 text-[13px] text-ink outline-none placeholder:text-ink-quiet focus:border-coral-mute mb-2"
           />
           <div className="flex items-center justify-end gap-2">
@@ -226,7 +226,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
               disabled={overriding}
               className="btn-ghost text-caption inline-flex items-center gap-1"
             >
-              <X size={11} /> 取消
+              <X size={11} /> Cancel
             </button>
             <button
               onClick={async () => {
@@ -243,7 +243,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
               disabled={overriding}
               className="btn-coral text-caption inline-flex items-center gap-1"
             >
-              <Check size={11} /> {overriding ? '改派中…' : '确认改派'}
+              <Check size={11} /> {overriding ? 'Reassigning…' : 'Confirm reassign'}
             </button>
           </div>
         </div>
@@ -263,11 +263,11 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
                       r.fallback ? 'bg-paper-subtle text-ink-quiet' : 'bg-coral-subtle text-coral-deep'
                     )}
                   >
-                    能力 {r.capability_fit ?? '—'} · 负载 {r.load_fit ?? '—'}
+                    capability {r.capability_fit ?? '—'} · load {r.load_fit ?? '—'}
                   </span>
                   {r.fallback && (
                     <span className="text-ink-quiet inline-flex items-center gap-1 text-[10px]">
-                      <RefreshCw size={10} /> 默认值代答
+                      <RefreshCw size={10} /> default substituted
                     </span>
                   )}
                 </div>
@@ -290,7 +290,7 @@ function DecompositionView({
 }) {
   return (
     <div>
-      <div className="eyebrow mb-3">已拆分 · {decomposition.length} 个子任务</div>
+      <div className="eyebrow mb-3">Split · {decomposition.length} subtask{decomposition.length === 1 ? '' : 's'}</div>
       <ul className="space-y-2.5">
         {decomposition.map((s, i) => (
           <li key={i} className="rounded-xl bg-paper-subtle p-3.5 border border-rule-soft hover:border-rule transition-colors">
@@ -309,13 +309,13 @@ function DecompositionView({
               {s.rationale}
             </p>
             <div className="flex items-center gap-3 text-[10px] font-mono">
-              <span className="text-ink-quiet">能力</span>
+              <span className="text-ink-quiet">capability</span>
               <span className="text-ink">{s.capability_fit}</span>
               <span className="text-ink-quiet">·</span>
-              <span className="text-ink-quiet">负载</span>
+              <span className="text-ink-quiet">load</span>
               <span className="text-ink">{s.load_fit}</span>
               <span className="text-ink-quiet">·</span>
-              <span className="text-ink-quiet">协作</span>
+              <span className="text-ink-quiet">collab</span>
               <span className="text-ink">{s.collab_fit}</span>
             </div>
           </li>
@@ -336,24 +336,24 @@ function ModePill({
 }) {
   const map: Record<ExecutionMode, { label: string; cls: string; title: string }> = {
     agent_led: {
-      label: `Claude Code 主做`,
+      label: `Claude Code drives`,
       cls: 'bg-coral-subtle text-coral-deep border-coral-mute',
-      title: `${owner} · Claude Code 主做`
+      title: `${owner} · Claude Code drives`
     },
     co_pilot: {
-      label: `${owner} 驾驶 + Claude Code 辅助`,
+      label: `${owner} drives + Claude Code assists`,
       cls: 'bg-paper-subtle text-forest border-rule',
-      title: `${owner} 主驾驶，Claude Code 辅助加速`
+      title: `${owner} drives; Claude Code accelerates`
     },
     human_only: {
-      label: `${owner} 亲自`,
+      label: `${owner} handles personally`,
       cls: 'bg-paper-subtle text-ink border-rule',
-      title: `必须人来 · ${owner} 亲自处理`
+      title: `Human-only · ${owner} handles personally`
     },
     split: {
-      label: '已拆分',
+      label: 'Split',
       cls: 'bg-amber/10 text-amber border-amber/30',
-      title: '子任务路由到不同 Pair'
+      title: 'Subtasks routed to different pairs'
     }
   };
   const m = map[mode];
@@ -377,7 +377,7 @@ function PriorityPill({ priority }: { priority: Priority }) {
   return (
     <span
       className={`text-[10px] px-1.5 py-0.5 rounded border ${cls[priority]}`}
-      title={`${priority} · ${PRIORITY_LABEL[priority]}${canInterrupt(priority) ? ' · 可打断当前工作' : ''}`}
+      title={`${priority} · ${PRIORITY_LABEL[priority]}${canInterrupt(priority) ? ' · can interrupt current work' : ''}`}
     >
       {PRIORITY_LABEL[priority]}
     </span>
@@ -386,11 +386,11 @@ function PriorityPill({ priority }: { priority: Priority }) {
 
 function StatusPill({ status }: { status: Task['status'] }) {
   const map: Record<Task['status'], { label: string; cls: string }> = {
-    predicting: { label: '推演中', cls: 'bg-coral text-paper animate-pulse-coral' },
-    predicted: { label: '已推演', cls: 'bg-coral-subtle text-coral-deep' },
-    accepted: { label: '已采纳', cls: 'bg-paper-subtle text-forest' },
-    overridden: { label: '已修改', cls: 'bg-paper-subtle text-amber' },
-    completed: { label: '已完成', cls: 'bg-paper-subtle text-ink-muted' }
+    predicting: { label: 'Predicting', cls: 'bg-coral text-paper animate-pulse-coral' },
+    predicted: { label: 'Predicted', cls: 'bg-coral-subtle text-coral-deep' },
+    accepted: { label: 'Accepted', cls: 'bg-paper-subtle text-forest' },
+    overridden: { label: 'Reassigned', cls: 'bg-paper-subtle text-amber' },
+    completed: { label: 'Done', cls: 'bg-paper-subtle text-ink-muted' }
   };
   const m = map[status];
   return <span className={cn('text-[10px] px-1.5 py-0.5 rounded', m.cls)}>{m.label}</span>;
@@ -419,13 +419,13 @@ function RationaleHead({
     <div>
       {/* Top1 + mode + override + alternatives — single compact row */}
       <div className="flex items-center gap-2 flex-wrap mb-3">
-        <span className="text-ink-muted text-[13px]">推荐</span>
+        <span className="text-ink-muted text-[13px]">Recommend</span>
         <MemberInline name={top1} dept={deptMap[top1]} size="sm" emphasis />
         {mode && <ModePill mode={mode} owner={top1} />}
         {overrideTo && overrideTo !== top1 && (
           <>
             <span className="text-ink-quiet text-[13px]">·</span>
-            <span className="text-amber text-[12px]">已修改</span>
+            <span className="text-amber text-[12px]">Reassigned</span>
             <span className="text-ink-muted text-[13px]">→</span>
             <MemberInline name={overrideTo} dept={deptMap[overrideTo]} size="sm" emphasis />
           </>
@@ -433,7 +433,7 @@ function RationaleHead({
         {alternatives.length > 0 && (
           <>
             <span className="text-ink-ghost text-[13px] mx-1">·</span>
-            <span className="text-[11px] text-ink-quiet">备选</span>
+            <span className="text-[11px] text-ink-quiet">Alternatives</span>
             {alternatives.slice(0, 4).map((a) => (
               <MemberInline key={a} name={a} dept={deptMap[a]} size="xs" />
             ))}
@@ -442,7 +442,7 @@ function RationaleHead({
       </div>
 
       {/* Always show structured rationale — 4 sections with icons + labels.
-          parseRationale → 推荐 / 关键论据 / 路径分歧 / 风险提示. RationaleBlock
+          parseRationale → recommend / evidence / divergence / risks. RationaleBlock
           handles unstructured text gracefully (renders as one paragraph). */}
       {rationale && (
         <div className="rounded-lg bg-paper-subtle/40 border border-rule-soft p-3.5">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTask, saveTask } from '@/lib/tasks';
 import { listAgents, updateState, getState } from '@/lib/agents';
 import { appendTimelineEvent } from '@/lib/timeline';
+import { appendEvent } from '@/lib/events';
 import { getToken, postDM } from '@/lib/slack';
 import type { EvidenceRef, PMADecisionV2 } from '@/types';
 
@@ -56,6 +57,19 @@ export async function POST(req: NextRequest, { params }: Params): Promise<Respon
       agent_name: target,
       summary: `${task.id} 被 override: ${oldTop1 ?? '(无)'} → ${target}`,
       detail: { reason, sim_id: sim_id_ref }
+    });
+    // Mirror into the unified events stream so the Anomaly Engine sees overrides
+    // without needing to read the legacy timeline.jsonl.
+    await appendEvent({
+      ts: now,
+      source: 'system',
+      type: 'task.overridden',
+      subject: { kind: 'task', ref: task.id },
+      actor: 'leader',
+      evidence: {
+        quote: reason,
+        fields: { from: oldTop1 ?? null, to: target, sim_id: sim_id_ref }
+      }
     });
 
     // Layer 2 · semantic — patch both profiles' recent_overrides arrays.

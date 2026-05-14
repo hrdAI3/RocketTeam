@@ -20,7 +20,7 @@ export function BootstrapModal({ open, clear, onClose, onDone }: BootstrapModalP
   }, [onDone]);
   const [phase1, setPhase1] = useState({ current: 0, total: 0 });
   const [phase2, setPhase2] = useState({ current: 0, total: 0 });
-  const [message, setMessage] = useState('启动中…');
+  const [message, setMessage] = useState('Starting…');
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [done, setDone] = useState(false);
@@ -30,7 +30,7 @@ export function BootstrapModal({ open, clear, onClose, onDone }: BootstrapModalP
     if (!open) {
       setPhase1({ current: 0, total: 0 });
       setPhase2({ current: 0, total: 0 });
-      setMessage('启动中…');
+      setMessage('Starting…');
       setError(null);
       setElapsed(0);
       setDone(false);
@@ -122,32 +122,32 @@ export function BootstrapModal({ open, clear, onClose, onDone }: BootstrapModalP
     >
       <div className="card-warm shadow-modal w-[480px] p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-serif text-[18px] text-ink">正在生成团队画像</h2>
+          <h2 className="font-serif text-[18px] text-ink">Generating team profiles</h2>
           {!done && !error && (
             <button
               onClick={onClose}
               className="text-ink-quiet hover:text-ink"
-              aria-label="取消生成"
+              aria-label="Cancel"
             >
               <X size={16} />
             </button>
           )}
         </div>
 
-        <ProgressBar label="阶段一 · 摘要会议" current={phase1.current} total={phase1.total} />
-        <ProgressBar label="阶段二 · 抽取画像" current={phase2.current} total={phase2.total} />
+        <ProgressBar label="Phase 1 · Summarize meetings" current={phase1.current} total={phase1.total} />
+        <ProgressBar label="Phase 2 · Extract profiles" current={phase2.current} total={phase2.total} />
 
         <div className="mt-4 text-caption text-ink-muted">
           {error ? (
             <span className="text-rust">{error}</span>
           ) : aborted ? (
-            <span>已取消</span>
+            <span>Cancelled</span>
           ) : done ? (
-            <span className="text-forest">完成</span>
+            <span className="text-forest">Done</span>
           ) : (
             <>
               <span>{message}</span>
-              <span className="ml-2 font-mono">· 已用 {elapsed}s</span>
+              <span className="ml-2 font-mono">· elapsed {elapsed}s</span>
             </>
           )}
         </div>
@@ -155,7 +155,7 @@ export function BootstrapModal({ open, clear, onClose, onDone }: BootstrapModalP
         {error && (
           <div className="mt-4 flex justify-end">
             <button onClick={onClose} className="btn-ghost text-caption">
-              关闭
+              Close
             </button>
           </div>
         )}

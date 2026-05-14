@@ -39,7 +39,7 @@ export function AgentInstanceCard({ profile, variant = 'card' }: Props) {
               {current.description}
             </div>
           ) : (
-            <div className="text-[11.5px] text-paper-subtle/60 leading-tight mt-0.5">空闲</div>
+            <div className="text-[11.5px] text-paper-subtle/60 leading-tight mt-0.5">Idle</div>
           )}
         </div>
         {usage !== null && (
@@ -76,7 +76,7 @@ export function AgentInstanceCard({ profile, variant = 'card' }: Props) {
         <div className="mb-3">
           <div className="flex items-baseline justify-between mb-1">
             <span className="text-[10.5px] uppercase font-mono text-paper-subtle/70 tracking-wide">
-              本月配额
+              Monthly quota
             </span>
             <span className={`text-[11px] font-mono ${usage >= 80 ? 'text-rust' : 'text-paper-subtle'}`}>
               ¥{agent.quota_used_cny}/{agent.quota_limit_cny}
@@ -94,13 +94,13 @@ export function AgentInstanceCard({ profile, variant = 'card' }: Props) {
           <>
             <div className="flex items-center gap-1.5 mb-1">
               <Activity size={10} className="text-coral animate-pulse" />
-              <span className="text-[10.5px] uppercase font-mono text-coral tracking-wide">正在做</span>
+              <span className="text-[10.5px] uppercase font-mono text-coral tracking-wide">In flight</span>
             </div>
             <div className="text-[12.5px] text-paper-subtle leading-snug">{current.description}</div>
           </>
         ) : (
           <div className="text-[11.5px] text-paper-subtle/60 leading-snug">
-            空闲 · 等待任务
+            Idle · awaiting work
           </div>
         )}
       </div>
@@ -109,7 +109,7 @@ export function AgentInstanceCard({ profile, variant = 'card' }: Props) {
       <footer className="flex items-center gap-2 mt-3 pt-3 border-t border-paper-subtle/15">
         <Avatar name={profile.name} dept={profile.dept} size="xs" />
         <span className="text-[11px] text-paper-subtle">
-          归属 <span className="font-serif text-paper">{profile.name}</span> · {profile.dept}
+          Owner: <span className="font-serif text-paper">{profile.name}</span> · {profile.dept}
         </span>
         {agent.last_active_at && (
           <span className="ml-auto text-[10px] font-mono text-paper-subtle/50">

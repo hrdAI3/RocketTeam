@@ -68,7 +68,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       // Use stored last_ts if available + not force_full; else fallback days_back.
       const cursorTs = body.force_full ? undefined : lastTsMap[ch.id];
       const sinceUnix = cursorTs ? parseFloat(cursorTs) : fallbackSince;
-      const msgs = await fetchChannelMessages(token, ch.id, sinceUnix, 500);
+      // Pull everything since the cursor (up to a generous safety cap). The old
+      // 500 cap could silently drop the oldest of a backlog when a channel was
+      // busy between syncs, then advance the cursor past them — a real "lost
+      // message" path. 2000 covers any realistic 15-min auto-sync window and
+      // most 30-day backfills; a manual "同步过去 30 天" re-run catches the rest.
+      const msgs = await fetchChannelMessages(token, ch.id, sinceUnix, 2000);
 
       // Slack inclusive ts boundary — drop messages with ts === cursor (already synced).
       const fresh = msgs.filter((m) => !cursorTs || parseFloat(m.ts) > parseFloat(cursorTs));

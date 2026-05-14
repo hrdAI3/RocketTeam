@@ -67,18 +67,18 @@ export function EvolutionDiff({ open, agentName, context, onClose, onApplied }: 
       <div className="card-warm shadow-modal w-[680px] max-h-[80vh] flex flex-col">
         <header className="flex items-center justify-between px-5 py-4 border-b border-rule">
           <h2 className="font-serif text-[18px] text-ink">
-            画像变更预览 · <span className="font-mono text-coral-deep">{agentName}</span>
+            Profile change preview · <span className="font-mono text-coral-deep">{agentName}</span>
           </h2>
-          <button onClick={onClose} className="text-ink-quiet hover:text-ink" aria-label="关闭">
+          <button onClick={onClose} className="text-ink-quiet hover:text-ink" aria-label="Close">
             <X size={16} />
           </button>
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {loading && <p className="text-body text-ink-muted">正在计算差异…</p>}
+          {loading && <p className="text-body text-ink-muted">Computing diff…</p>}
           {error && <p className="text-body text-rust">{error}</p>}
           {diff && diff.patches.length === 0 && (
-            <p className="text-body text-ink-muted">这段上下文没有触发任何画像变更。</p>
+            <p className="text-body text-ink-muted">This context didn&apos;t trigger any profile changes.</p>
           )}
           {diff && diff.patches.length > 0 && (
             <div className="space-y-3">
@@ -100,7 +100,7 @@ export function EvolutionDiff({ open, agentName, context, onClose, onApplied }: 
 
         <footer className="px-5 py-3 border-t border-rule flex justify-end gap-2">
           <button onClick={onClose} disabled={applying} className="btn-ghost text-caption">
-            放弃
+            Discard
           </button>
           <button
             disabled={!diff || applying || diff.patches.length === 0}
@@ -114,8 +114,8 @@ export function EvolutionDiff({ open, agentName, context, onClose, onApplied }: 
                   body: JSON.stringify(diff)
                 });
                 if (!res.ok) {
-                  const e = await res.json().catch(() => ({ error: '应用失败' }));
-                  setError(e.error ?? '应用失败');
+                  const e = await res.json().catch(() => ({ error: 'Apply failed' }));
+                  setError(e.error ?? 'Apply failed');
                   return;
                 }
                 onApplied();
@@ -127,7 +127,7 @@ export function EvolutionDiff({ open, agentName, context, onClose, onApplied }: 
             }}
             className="btn-coral text-caption"
           >
-            {applying ? '应用中…' : '确认应用'}
+            {applying ? 'Applying…' : 'Confirm apply'}
           </button>
         </footer>
       </div>
@@ -146,7 +146,7 @@ function DiffRow({
   oldVal: unknown;
   newVal: unknown;
 }) {
-  const opLabel: Record<typeof op, string> = { add: '新增', replace: '替换', remove: '删除' };
+  const opLabel: Record<typeof op, string> = { add: 'add', replace: 'replace', remove: 'remove' };
   return (
     <div className="text-caption">
       <div className="font-mono text-ink-quiet mb-1">

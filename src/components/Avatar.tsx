@@ -131,7 +131,7 @@ export function MemberChip({
         <span
           aria-hidden
           className="absolute top-2.5 right-2.5 w-1.5 h-1.5 rounded-full bg-coral"
-          title="已建画像"
+          title="Profile built"
         />
       )}
       <Avatar name={name} dept={dept} size="md" />

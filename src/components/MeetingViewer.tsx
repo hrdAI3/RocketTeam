@@ -67,7 +67,7 @@ export function MeetingViewer({ file, title, date, onClose }: MeetingViewerProps
           <button
             onClick={onClose}
             className="text-ink-quiet hover:text-ink shrink-0"
-            aria-label="关闭"
+            aria-label="Close"
           >
             <X size={16} />
           </button>
@@ -77,11 +77,11 @@ export function MeetingViewer({ file, title, date, onClose }: MeetingViewerProps
           {loading && (
             <div className="flex items-center gap-2 text-body text-ink-muted">
               <Loader2 size={14} className="animate-spin" />
-              加载中…
+              Loading…
             </div>
           )}
           {error && (
-            <div className="text-body text-rust">加载失败：{error}</div>
+            <div className="text-body text-rust">Failed to load: {error}</div>
           )}
           {content && (
             <pre className="font-serif text-[14.5px] leading-relaxed text-ink whitespace-pre-wrap break-words">
@@ -91,7 +91,7 @@ export function MeetingViewer({ file, title, date, onClose }: MeetingViewerProps
         </div>
 
         <footer className="px-6 py-3 border-t border-rule-soft text-[11px] text-ink-quiet flex items-center gap-2">
-          <span>这是系统读取过的原始会议记录。所有画像证据都从这里抽取。</span>
+          <span>This is the raw meeting transcript the system has read. Every piece of profile evidence is extracted from here.</span>
         </footer>
       </div>
     </div>

@@ -12,19 +12,19 @@ import type { SimulationRunState, AgentAction, RoundSummary, Track, Department }
 type DeptMap = Record<string, Department>;
 
 const ACTION_LABEL: Record<string, string> = {
-  BID: '投标',
-  DEFER: '推让',
-  RECOMMEND_SPLIT: '建议拆分',
-  OBJECT: '反对',
-  COMMIT: '承接',
-  REFINED_BID: '反思修正'
+  BID: 'Bid',
+  DEFER: 'Defer',
+  RECOMMEND_SPLIT: 'Recommend split',
+  OBJECT: 'Object',
+  COMMIT: 'Commit',
+  REFINED_BID: 'Refined bid'
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  running: '进行中',
-  completed: '已完成',
-  failed: '失败',
-  pending: '待启动'
+  running: 'Running',
+  completed: 'Completed',
+  failed: 'Failed',
+  pending: 'Pending'
 };
 
 export default function SimReplayPage({ params }: { params: { id: string } }) {
@@ -51,17 +51,17 @@ export default function SimReplayPage({ params }: { params: { id: string } }) {
     return (
       <div className="px-12 py-10 max-w-[1100px] mx-auto">
         <div className="card-surface p-6 max-w-md">
-          <div className="font-serif text-title text-rust mb-2">推演记录未找到</div>
+          <div className="font-serif text-title text-rust mb-2">Simulation record not found</div>
           <p className="text-body text-ink-muted">{error}</p>
           <Link href="/tasks" className="link-coral text-caption mt-3 inline-block">
-            ← 返回任务列表
+            ← Back to tasks
           </Link>
         </div>
       </div>
     );
   }
   if (!state) {
-    return <div className="px-12 py-10 font-serif text-title text-ink-muted">推演回放加载中…</div>;
+    return <div className="px-12 py-10 font-serif text-title text-ink-muted">Loading simulation replay…</div>;
   }
 
   return (
@@ -71,19 +71,19 @@ export default function SimReplayPage({ params }: { params: { id: string } }) {
           href="/tasks"
           className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
         >
-          <ArrowLeft size={12} /> 任务
+          <ArrowLeft size={12} /> Tasks
         </Link>
         <div className="eyebrow mb-1">
-          Rocket Team / 推演回放 · <span className="font-mono">{state.sim_id}</span>
+          Rocket Team / Simulation replay · <span className="font-mono">{state.sim_id}</span>
         </div>
         <h1 className="display-title">{state.config.task_description}</h1>
         <div className="flex gap-4 mt-3 text-caption text-ink-muted">
           <span>
-            <span className="font-mono text-ink">{state.config.eligible_agents.length}</span> 位候选成员
+            <span className="font-mono text-ink">{state.config.eligible_agents.length}</span> candidate{state.config.eligible_agents.length === 1 ? '' : 's'}
           </span>
           <span>·</span>
           <span>
-            <span className="font-mono text-ink">{state.config.rounds}</span> 轮推演
+            <span className="font-mono text-ink">{state.config.rounds}</span> round{state.config.rounds === 1 ? '' : 's'}
           </span>
           <span>·</span>
           <span className={state.status === 'completed' ? 'text-forest' : 'text-amber'}>
@@ -95,7 +95,7 @@ export default function SimReplayPage({ params }: { params: { id: string } }) {
       <DecisionSummaryCard simId={state.sim_id} taskId={state.config.task_id} deptMap={deptMap} />
 
       <div className="mt-10 mb-3">
-        <div className="eyebrow">逐轮回放</div>
+        <div className="eyebrow">Round-by-round replay</div>
       </div>
 
       <div>
@@ -179,17 +179,17 @@ function DecisionSummaryCard({
     <div className="card-warm p-6 shadow-soft animate-fade-in">
       <div className="flex items-start justify-between gap-6 mb-5">
         <div className="min-w-0 flex-1">
-          <div className="eyebrow mb-2">最终决策 · 由 Report Agent 整合</div>
+          <div className="eyebrow mb-2">Final decision · synthesized by Report Agent</div>
           {decomp && decomp.length > 0 ? (
             <h2 className="font-serif text-[24px] leading-tight text-ink">
-              拆为 <span className="text-coral-deep">{decomp.length}</span> 个子任务
+              Split into <span className="text-coral-deep">{decomp.length}</span> subtask{decomp.length === 1 ? '' : 's'}
             </h2>
           ) : d.top1 ? (
             <h2 className="font-serif text-[24px] leading-tight text-ink">
-              推荐分配给 <span className="text-coral-deep">{d.top1}</span>
+              Recommended for <span className="text-coral-deep">{d.top1}</span>
             </h2>
           ) : (
-            <h2 className="font-serif text-[24px] leading-tight text-ink-soft">无明确合适人选</h2>
+            <h2 className="font-serif text-[24px] leading-tight text-ink-soft">No clear owner</h2>
           )}
         </div>
         <div className="shrink-0">
@@ -227,7 +227,7 @@ function DecisionSummaryCard({
         <div className="rounded-lg bg-coral-subtle/40 border border-coral-mute px-4 py-3 mb-4">
           <div className="flex items-center gap-1.5 mb-1.5">
             <Sparkles size={11} className="text-coral" />
-            <span className="text-[11px] text-coral-deep font-medium">推演摘要</span>
+            <span className="text-[11px] text-coral-deep font-medium">Simulation summary</span>
           </div>
           <p className="text-[12.5px] text-ink-soft font-serif leading-relaxed">{d.track_a_summary}</p>
         </div>
@@ -240,7 +240,7 @@ function DecisionSummaryCard({
       )}
 
       <div className="mt-4 pt-4 border-t border-rule-soft flex items-center gap-4 text-[11px] font-mono text-ink-quiet">
-        <span>引用 {d.ground_truth_evidence_count} 条证据</span>
+        <span>{d.ground_truth_evidence_count} evidence cited</span>
         {d.reason_if_null && (
           <>
             <span>·</span>
@@ -248,7 +248,7 @@ function DecisionSummaryCard({
           </>
         )}
         <span className="ml-auto inline-flex items-center gap-1.5 text-coral">
-          <MessageSquare size={11} /> 向 Report Agent 追问 →
+          <MessageSquare size={11} /> Ask Report Agent →
         </span>
       </div>
     </div>
@@ -281,15 +281,15 @@ function TrackColumn({
           <Icon size={16} strokeWidth={2.4} />
         </div>
         <div>
-          <h2 className="font-serif text-[20px] leading-tight text-ink">推演讨论</h2>
+          <h2 className="font-serif text-[20px] leading-tight text-ink">Simulation discussion</h2>
           <div className="text-[12px] text-ink-quiet mt-0.5">
-            按 P 优先级策略跑多轮 BID / SPLIT / COMMIT
+            Multi-round BID / SPLIT / COMMIT under the P-priority strategy
           </div>
         </div>
       </header>
 
       {rounds.length === 0 && (
-        <div className="text-[13px] text-ink-quiet font-serif">等待动作产生…</div>
+        <div className="text-[13px] text-ink-quiet font-serif">Waiting for actions…</div>
       )}
 
       <div className="space-y-6">
@@ -305,10 +305,10 @@ function RoundBlock({ round, deptMap }: { round: RoundSummary; deptMap: DeptMap 
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
-        <div className="eyebrow">第 {round.round_num} 轮</div>
+        <div className="eyebrow">Round {round.round_num}</div>
         {round.converged && (
           <span className="text-[10px] font-mono text-forest px-2 py-0.5 rounded bg-forest/10">
-            已收敛
+            converged
           </span>
         )}
       </div>
@@ -347,9 +347,9 @@ function ActionCard({ action, deptMap }: { action: AgentAction; deptMap: DeptMap
 
       {p.type === 'BID' && (
         <div className="grid grid-cols-3 gap-2 mb-2">
-          <ScoreBar label="能力" value={p.capability_fit} />
-          <ScoreBar label="负载" value={p.load_fit} />
-          <ScoreBar label="协作" value={p.collab_fit} />
+          <ScoreBar label="Capability" value={p.capability_fit} />
+          <ScoreBar label="Load" value={p.load_fit} />
+          <ScoreBar label="Collab" value={p.collab_fit} />
         </div>
       )}
 
@@ -370,19 +370,19 @@ function ActionCard({ action, deptMap }: { action: AgentAction; deptMap: DeptMap
 
       {p.type === 'DEFER' && (
         <div className="text-[13px] text-ink-soft mb-1.5 inline-flex items-center gap-1.5">
-          → 推让给 <MemberInline name={p.recommend} dept={deptMap[p.recommend]} size="xs" emphasis />
+          → Defers to <MemberInline name={p.recommend} dept={deptMap[p.recommend]} size="xs" emphasis />
         </div>
       )}
 
       {p.type === 'OBJECT' && (
         <div className="text-[12.5px] text-ink-soft mb-1.5">
-          反对 <span className="font-serif text-rust">「{p.against}」</span>
+          Objects to <span className="font-serif text-rust">&ldquo;{p.against}&rdquo;</span>
         </div>
       )}
 
       {p.type === 'COMMIT' && (
         <div className="text-[12.5px] text-ink-soft mb-1.5">
-          承接 <span className="font-serif text-forest font-semibold">「{p.subtask}」</span>
+          Commits to <span className="font-serif text-forest font-semibold">&ldquo;{p.subtask}&rdquo;</span>
         </div>
       )}
 
@@ -394,7 +394,7 @@ function ActionCard({ action, deptMap }: { action: AgentAction; deptMap: DeptMap
 
       {!action.success && (
         <div className="mt-1.5 text-[10px] font-mono text-ink-quiet">
-          这位成员未在限时内回复，已用画像默认值代答
+          Member didn&apos;t reply within the timeout; profile defaults substituted.
         </div>
       )}
     </article>
