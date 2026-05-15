@@ -14,7 +14,7 @@
 
 import { resolveOrUnknown } from '../lib/identity';
 
-const COLLECTOR_BASE = process.env.CC_COLLECTOR_BASE ?? 'http://192.168.22.88:8848';
+const COLLECTOR_BASE = process.env.CC_COLLECTOR_BASE ?? 'http://192.168.22.88:8933';
 
 // One element of the /api/cc-status* response. Every field optional on our side
 // — the collector may roll out fields incrementally and old snapshots won't

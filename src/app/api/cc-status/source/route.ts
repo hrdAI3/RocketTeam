@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 // Tells the leader: is the collector reachable, how many users it knows about,
 // how many CC events we've ingested, and when we last synced each user.
 export async function GET(): Promise<Response> {
-  const base = process.env.CC_COLLECTOR_BASE ?? 'http://192.168.22.88:8848';
+  const base = process.env.CC_COLLECTOR_BASE ?? 'http://192.168.22.88:8933';
   let reachable = false;
   let users: string[] = [];
   let collectorError: string | undefined;
