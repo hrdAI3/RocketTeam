@@ -1,5 +1,5 @@
 // CC SESSIONS extractor.
-// Pulls jsonl files from http://192.168.22.88:8080 (TeamAgent Collector),
+// Pulls jsonl files from http://192.168.22.88:8848 (Matrix-Riven Collector),
 // parses Claude Code's real session schema, and emits typed events.
 //
 // Endpoint contract (probed 2026-05-11):
@@ -23,7 +23,7 @@ import { resolveOrUnknown } from '../lib/identity';
 import type { NewEvent } from '../lib/events';
 
 const COLLECTOR_BASE =
-  process.env.CC_COLLECTOR_BASE ?? 'http://192.168.22.88:8080';
+  process.env.CC_COLLECTOR_BASE ?? 'http://192.168.22.88:8848';
 
 // Stuck signal patterns. v0 was too broad — matched markdown templates and
 // status reports that contained literal "BLOCKED" or "卡住" tokens. v1 narrows

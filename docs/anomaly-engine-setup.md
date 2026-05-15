@@ -25,7 +25,7 @@ SLACK_VAULT_KEY=<long random>        # required even if Slack not connected
 GITHUB_VAULT_KEY=<long random>       # optional, falls back to SLACK_VAULT_KEY
 
 # CC SESSIONS collector
-CC_COLLECTOR_BASE=http://192.168.22.88:8080   # default
+CC_COLLECTOR_BASE=http://192.168.22.88:8848   # default
 
 # GitHub repos to watch (comma-separated, scoped to the connected org)
 GITHUB_DEFAULT_REPOS=RocketTeam,TeamBrain
@@ -103,7 +103,7 @@ Add to leader's `claude_desktop_config.json` (Claude Desktop) or per-machine MCP
         "TEAM_API_BASE": "http://127.0.0.1:3000",
         "MINIMAX_API_KEY": "...",
         "SLACK_VAULT_KEY": "...",
-        "CC_COLLECTOR_BASE": "http://192.168.22.88:8080"
+        "CC_COLLECTOR_BASE": "http://192.168.22.88:8848"
       }
     }
   }
