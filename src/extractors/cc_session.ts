@@ -20,6 +20,7 @@
 
 import { appendEvents, readSyncState, writeSyncState } from '../lib/events';
 import { resolveOrUnknown } from '../lib/identity';
+import { isGhostUserId, canonicalSessionId } from '../lib/ghost_user';
 import type { NewEvent } from '../lib/events';
 
 const COLLECTOR_BASE =
@@ -414,6 +415,15 @@ export interface SyncSummary {
   newSessions: number;
   eventsEmitted: number;
   unresolvedUsers: string[];
+  /**
+   * Sessions skipped because they were `cc-status`-only fragments under a
+   * hostname-fallback "ghost" user_id whose session_id is also present
+   * (with a real transcript) under a non-ghost user_id on the same Matrix-Riven
+   * machine. See `lib/ghost_user.ts` for the detection rules + rationale.
+   * Sole-identity ghosts (their session_id has no non-ghost peer) are NOT
+   * skipped — their data is real and we want it.
+   */
+  redundantGhostsSkipped: number;
   errors: Array<{ user?: string; date?: string; sessionId?: string; error: string }>;
 }
 
@@ -425,6 +435,7 @@ export async function syncCcSessions(opts?: { limitUsers?: string[]; lookbackDay
     newSessions: 0,
     eventsEmitted: 0,
     unresolvedUsers: [],
+    redundantGhostsSkipped: 0,
     errors: []
   };
 
@@ -441,6 +452,40 @@ export async function syncCcSessions(opts?: { limitUsers?: string[]; lookbackDay
   summary.users = users.length;
   const lookback = opts?.lookbackDays ?? 14;
   const today = new Date();
+  const cutoff = new Date(today.getTime() - lookback * 86_400_000);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
+  // ---- Pre-pass: index non-ghost (real-email) users' transcript session_ids.
+  // Used in the main loop to skip "redundant ghost" sessions — cc-status
+  // fragments under hostname-fallback user_ids whose canonical session_id
+  // is already owned by a real-email user (which holds the actual transcript).
+  // Sole-identity ghosts (no non-ghost peer for any of their sessions) pass
+  // through untouched — see lib/ghost_user.ts.
+  const nonGhostTranscriptIds = new Set<string>();
+  for (const email of users) {
+    if (isGhostUserId(email)) continue;
+    let dates: string[];
+    try {
+      dates = await listDates(email);
+    } catch {
+      continue; // missing dates listing on a real user is not fatal here
+    }
+    for (const d of dates.filter((x) => x >= cutoffStr)) {
+      let sess: SessionFileRef[];
+      try {
+        sess = await listSessions(email, d);
+      } catch {
+        continue;
+      }
+      for (const s of sess) {
+        // Only record entries that are TRANSCRIPTS (not cc-status fragments).
+        // The collector represents each as basename-minus-extension; cc-status
+        // entries carry the `.cc-status` suffix on `id`.
+        if (s.id.endsWith('.cc-status')) continue;
+        nonGhostTranscriptIds.add(s.id);
+      }
+    }
+  }
 
   for (const email of users) {
     let resolved = await resolveOrUnknown('email', email);
@@ -448,6 +493,7 @@ export async function syncCcSessions(opts?: { limitUsers?: string[]; lookbackDay
     const userState = state.users[email] ?? {};
     const lastMtime = userState.lastSyncedMtime ?? '';
     let highestMtime = lastMtime;
+    const isGhost = isGhostUserId(email);
 
     let dates: string[];
     try {
@@ -457,8 +503,6 @@ export async function syncCcSessions(opts?: { limitUsers?: string[]; lookbackDay
       continue;
     }
     // Filter to lookback window — collector may list very old dates.
-    const cutoff = new Date(today.getTime() - lookback * 86_400_000);
-    const cutoffStr = cutoff.toISOString().slice(0, 10);
     const datesInWindow = dates.filter((d) => d >= cutoffStr).sort();
 
     for (const date of datesInWindow) {
@@ -475,6 +519,18 @@ export async function syncCcSessions(opts?: { limitUsers?: string[]; lookbackDay
       }
       for (const sess of sessions) {
         if (lastMtime && sess.mtime <= lastMtime) continue;
+
+        // Redundant-ghost filter: this session is under a hostname-fallback
+        // user_id AND its canonical session_id is already covered by a
+        // real-email user's transcript on the same Matrix-Riven instance
+        // (built in the pre-pass above). Skip ingestion to avoid emitting
+        // duplicate cc.* events under both identities.
+        if (isGhost && nonGhostTranscriptIds.has(canonicalSessionId(sess.id))) {
+          summary.redundantGhostsSkipped++;
+          if (sess.mtime > highestMtime) highestMtime = sess.mtime;
+          continue;
+        }
+
         try {
           const raw = await fetchSessionRaw(email, date, sess.id, sess.ext);
           const parsed = parseSession(email, date, sess.id, resolved.name, raw);
