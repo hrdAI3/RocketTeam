@@ -127,7 +127,14 @@ export function Sidebar() {
 
         <nav className="px-2 pt-3 space-y-0.5">
           {nav.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + '/');
+            // Only the MOST SPECIFIC matching nav item is active. Vision/Goals
+            // live under /status/ (hrefs /status/vision, /status/goals), so a
+            // naive startsWith lit BOTH the parent /status AND the child. Pick
+            // the longest matching href instead so exactly one highlights.
+            const matches = (h: string) => pathname === h || pathname.startsWith(h + '/');
+            const active =
+              matches(item.href) &&
+              !nav.some((o) => o.href !== item.href && o.href.length > item.href.length && matches(o.href));
             const Icon = item.icon;
             return (
               <Link
