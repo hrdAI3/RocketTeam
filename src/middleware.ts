@@ -65,10 +65,15 @@ export async function middleware(req: NextRequest): Promise<Response> {
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
     return NextResponse.next();
   }
-  // Static + framework internals
+  // Static + framework internals. /fonts MUST be here: the self-hosted
+  // Source Serif 4 woff2 live in public/fonts/, and without this the auth gate
+  // 307-redirects the font request to /login. The browser then caches that HTML
+  // as the "font" and every heading silently falls back to a system serif
+  // ("OTS parsing error: invalid sfntVersion" in the console).
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/static') ||
+    pathname.startsWith('/fonts') ||
     pathname === '/favicon.ico' ||
     pathname === '/robots.txt'
   ) {
@@ -103,5 +108,5 @@ export async function middleware(req: NextRequest): Promise<Response> {
 }
 
 export const config = {
-  matcher: ['/((?!_next|favicon.ico|robots.txt).*)']
+  matcher: ['/((?!_next|fonts|favicon.ico|robots.txt).*)']
 };
