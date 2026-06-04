@@ -11,9 +11,10 @@
 //        across an await (lost-update risk #7).
 
 import { NextRequest, NextResponse } from 'next/server';
-import { goalsView } from '../../../services/goal_progress';
+import { goalsView, GOALS_VIEW_KEY } from '../../../services/goal_progress';
 import { updateGoals, type Goal } from '../../../lib/goals';
 import { readProjects, slugify, uniqueSlug } from '../../../lib/projects';
+import { bustTTL } from '../../../lib/ttl_cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       return file;
     });
     if (!found) return bad('unknown goal id', 404);
+    bustTTL(GOALS_VIEW_KEY); // reflect the edit immediately, not after the 120s TTL
     return new NextResponse(JSON.stringify(found), { headers: JSON_HEADERS });
   }
 
@@ -129,5 +131,6 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
   // created is always set here (mutator runs synchronously inside updateGoals).
   if (!created) return bad('failed to create goal', 500);
+  bustTTL(GOALS_VIEW_KEY); // reflect the new goal immediately, not after the 120s TTL
   return new NextResponse(JSON.stringify(created), { headers: JSON_HEADERS });
 }

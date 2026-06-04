@@ -25,6 +25,7 @@
 // design — progress/drift are conservative FLOORS of recent activity.
 
 import { streamEvents } from '../lib/events';
+import { memoTTL } from '../lib/ttl_cache';
 import { buildRepoAliasIndex } from './attribute_run';
 import { readGoals } from '../lib/goals';
 import { readProjects } from '../lib/projects';
@@ -66,7 +67,21 @@ function fourteenDayWindow(now = new Date()): { startMs: number; midMs: number; 
   return { startMs, midMs, endMs };
 }
 
-export async function goalsView(): Promise<GoalsView> {
+// Cached entry point. goalsView() scans the (windowed) event log — ~18s
+// standalone, and far worse inside the dev server under concurrent load (one
+// /api/goals took 114s on the box). Nothing here needs to be real-time fresh
+// for a glance, so memoize with SWR: the first hit blocks, every later hit (and
+// the 60s page poll) returns instantly while a background refresh runs. The
+// monitor's prewarm touches this key on a timer so it stays permanently warm.
+// Goal mutations call bustTTL('goals-view') (POST /api/goals) for immediate
+// reflection. Internal callers (daily_brief, vision_progress, goal_actuators)
+// all go through here, so they share the one cached value.
+export const GOALS_VIEW_KEY = 'goals-view';
+export function goalsView(): Promise<GoalsView> {
+  return memoTTL(GOALS_VIEW_KEY, 120_000, computeGoalsView);
+}
+
+async function computeGoalsView(): Promise<GoalsView> {
   const now = new Date();
   // 14d read (this-week + last-week) — ONE windowed pass, never a second load.
   // midMs == sevenDayWindow().startMs, so this-week stays identical to 7d math.

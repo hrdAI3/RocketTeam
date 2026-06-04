@@ -23,7 +23,12 @@ const TARGETS: Array<{ key: string; load: () => Promise<{ GET: () => Promise<Res
   { key: 'roster-health', load: () => import('../app/api/roster/health/route') },
   { key: 'evaluation', load: () => import('../app/api/evaluation/route') },
   { key: 'identity-events', load: () => import('../app/api/identity-events/route') },
-  { key: 'cc-source', load: () => import('../app/api/cc-status/source/route') }
+  { key: 'cc-source', load: () => import('../app/api/cc-status/source/route') },
+  // Goals/Vision both scan the windowed event log via goalsView (cached under
+  // 'goals-view'); warming /api/goals keeps that key hot so the page poll is
+  // instant. /api/vision reuses the same cached goalsView.
+  { key: 'goals', load: () => import('../app/api/goals/route') },
+  { key: 'vision', load: () => import('../app/api/vision/route') }
 ];
 
 export async function prewarmDashboards(): Promise<{ warmed: number; failed: number }> {
