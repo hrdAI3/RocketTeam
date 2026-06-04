@@ -15,7 +15,15 @@ export type EdgeKind =
   | 'has_skill';
 
 export interface EvidenceRef {
-  source: 'meeting' | 'task_outcome' | 'self_report' | 'override' | 'org_chart';
+  source:
+    | 'meeting'
+    | 'task_outcome'
+    | 'self_report'
+    | 'override'
+    | 'org_chart'
+    | 'cc_session'
+    | 'slack'
+    | 'github';
   source_id: string;          // e.g. "meeting/产品讨论-0428.txt"
   speaker?: string;           // org canonical name
   ts_range?: [string, string];
@@ -93,7 +101,11 @@ export interface TeamMemberProfile {
   // Always 'human' for new schema. Field kept for type compat with old AI-only profiles.
   kind?: WorkerKind;
   dept: Department;
-  role: string;
+  // role removed 2026-05-21 — system no longer enforces a single role label
+  // per person. Profile.capabilities carries actual skill breadth; behavior
+  // snapshot's current_projects carries what they're doing. Kept optional
+  // for legacy reads; new writes should omit.
+  role?: string;
   join_date: string | null;
   tier: Tier;
   // Each member's owned Claude Code instance. PMA can target either the person

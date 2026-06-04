@@ -39,7 +39,7 @@ export function RationaleBlock({ text, skipPick = false }: { text: string; skipP
 
   if (r.raw) {
     return (
-      <p className="font-serif text-[14.5px] leading-relaxed text-ink whitespace-pre-wrap">
+      <p className="font-serif text-[13.5px] leading-relaxed text-ink whitespace-pre-wrap">
         {r.raw}
       </p>
     );
@@ -83,7 +83,7 @@ function Section({
       </div>
       <div className="flex-1 min-w-0">
         <span className={`eyebrow ${headColor}`}>{label}</span>
-        <p className="font-serif text-[14px] leading-relaxed text-ink mt-0.5">{body}</p>
+        <p className="font-serif text-[13px] leading-relaxed text-ink mt-0.5">{body}</p>
       </div>
     </div>
   );

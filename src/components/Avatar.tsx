@@ -19,7 +19,7 @@ const SIZES = {
   xs: { box: 'w-5 h-5', text: 'text-[9.5px]' },
   sm: { box: 'w-7 h-7', text: 'text-[11px]' },
   md: { box: 'w-9 h-9', text: 'text-[13px]' },
-  lg: { box: 'w-11 h-11', text: 'text-[16px]' },
+  lg: { box: 'w-11 h-11', text: 'text-[14px]' },
   xl: { box: 'w-14 h-14', text: 'text-[20px]' }
 } as const;
 
@@ -72,6 +72,50 @@ function nameInitial(name: string): string {
   return code < 128 ? ch.toUpperCase() : ch;
 }
 
+// Overlapping avatar stack — for contributor lists where individual names
+// matter less than "who + how many". Ported from the Rocket Team design.
+// Shows up to `max` avatars overlapping, then a "+N" chip for the overflow.
+export function AvatarStack({
+  names,
+  deptOf,
+  size = 'sm',
+  max = 4
+}: {
+  names: string[];
+  deptOf?: (name: string) => Department | string | undefined;
+  size?: keyof typeof SIZES;
+  max?: number;
+}) {
+  const shown = names.slice(0, max);
+  const overflow = names.length - shown.length;
+  const s = SIZES[size];
+  return (
+    <span className="inline-flex items-center">
+      {shown.map((n, i) => (
+        <span
+          key={n}
+          className="relative rounded-full ring-2 ring-paper-card"
+          style={{ marginLeft: i === 0 ? 0 : -6, zIndex: shown.length - i }}
+        >
+          <Avatar name={n} dept={deptOf?.(n)} size={size} />
+        </span>
+      ))}
+      {overflow > 0 && (
+        <span
+          className={cn(
+            'inline-flex items-center justify-center rounded-full border border-rule bg-paper-subtle text-ink-muted font-mono ring-2 ring-paper-card',
+            s.box
+          )}
+          style={{ marginLeft: -6, fontSize: 10 }}
+          title={names.slice(max).join(', ')}
+        >
+          +{overflow}
+        </span>
+      )}
+    </span>
+  );
+}
+
 // Inline member badge — avatar + name. Use everywhere a person is mentioned
 // in a sentence-ish flow (recommendations, action cards, decomposition assignees).
 export function MemberInline({
@@ -94,7 +138,7 @@ export function MemberInline({
           emphasis ? 'text-ink font-semibold' : 'text-ink',
           size === 'xs' && 'text-[12px]',
           size === 'sm' && 'text-[13.5px]',
-          size === 'md' && 'text-[15px]',
+          size === 'md' && 'text-[13px]',
           size === 'lg' && 'text-[17px]'
         )}
       >
@@ -136,7 +180,7 @@ export function MemberChip({
       )}
       <Avatar name={name} dept={dept} size="md" />
       <div className="min-w-0 flex-1">
-        <div className="font-serif text-[15.5px] leading-tight text-ink truncate tracking-tight">
+        <div className="font-serif text-[13.5px] leading-tight text-ink truncate tracking-tight">
           {name}
         </div>
         {role && (

@@ -46,3 +46,9 @@ Thumbs.db
 .vscode/
 .idea/
 .gstack/
+
+# Local test / debug artifacts (not source)
+.test-cookie
+.test-status.html
+.nav-check/
+projects_cwds_summary.csv

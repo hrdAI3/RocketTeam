@@ -40,6 +40,7 @@ const config: Config = {
         amber: '#D49B40',      // warning / partial
         rust: '#B85850',       // danger / burnt
         sky: '#5681A8',        // info / running
+        plum: '#8A5A87',       // accent — secondary category (from Rocket Team design)
         // Legacy aliases (kept so existing components don't break)
         bg: { DEFAULT: '#FAF9F5', sidebar: '#F2EFE6', hover: '#EDE9DB', active: '#FCEEE2' },
         text: { primary: '#1F1F1C', secondary: '#5A5A57', muted: '#8A8782', inverse: '#FAF9F5' },
@@ -49,15 +50,16 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-geist-sans)', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
         mono: ['var(--font-geist-mono)', 'monospace'],
-        serif: ['var(--font-source-serif)', 'Songti SC', 'SimSun', 'Georgia', 'serif']
+        serif: ['"Source Serif 4"', 'Cambria', 'Songti SC', 'SimSun', 'Georgia', 'serif']
       },
       fontSize: {
-        // Editorial display ramp
+        // Editorial display ramp — calibrated to rocket-team.renlab.ai demo
+        // computed-style values (sidebar 13.5, body 13/16, h1 36, card title 18).
         hero: ['44px', { lineHeight: '48px', letterSpacing: '-0.025em', fontWeight: '500' }],
-        display: ['32px', { lineHeight: '38px', letterSpacing: '-0.02em', fontWeight: '500' }],
+        display: ['36px', { lineHeight: '42px', letterSpacing: '-0.02em', fontWeight: '500' }],
         title: ['22px', { lineHeight: '28px', letterSpacing: '-0.015em', fontWeight: '500' }],
-        heading: ['16px', { lineHeight: '22px', fontWeight: '600' }],
-        body: ['14.5px', { lineHeight: '22px', fontWeight: '400' }],
+        heading: ['18px', { lineHeight: '24px', fontWeight: '600' }],
+        body: ['16px', { lineHeight: '24px', fontWeight: '400' }],
         sidebar: ['13.5px', { lineHeight: '20px', fontWeight: '500' }],
         caption: ['12px', { lineHeight: '16px', fontWeight: '400' }]
       },
@@ -86,6 +88,10 @@ const config: Config = {
           '0%, 100%': { boxShadow: '0 0 0 0 rgba(217,119,87,0.45)' },
           '50%': { boxShadow: '0 0 0 8px rgba(217,119,87,0)' }
         },
+        'pulse-rust': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(184,88,80,0.45)' },
+          '50%': { boxShadow: '0 0 0 5px rgba(184,88,80,0)' }
+        },
         shimmer: {
           '0%, 100%': { opacity: '0.6' },
           '50%': { opacity: '1' }
@@ -95,6 +101,7 @@ const config: Config = {
         'fade-in': 'fade-in 0.4s ease-out forwards',
         'slide-up': 'slide-up 0.32s cubic-bezier(0.16,1,0.3,1) forwards',
         'pulse-coral': 'pulse-coral 1.6s ease-in-out infinite',
+        'pulse-rust': 'pulse-rust 1.6s ease-in-out infinite',
         shimmer: 'shimmer 1.6s ease-in-out infinite'
       }
     }

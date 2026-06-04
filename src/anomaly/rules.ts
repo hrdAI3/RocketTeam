@@ -6,7 +6,7 @@
 
 import { promises as fs } from 'node:fs';
 import { PATHS } from '../lib/paths';
-import { readAllEvents } from '../lib/events';
+import { readEventsWindow } from '../lib/events';
 import type { Event, EventSubject, SuggestedAction, AnomalySeverityHint, Anomaly } from '../types/events';
 import type { Task } from '../types/index';
 
@@ -387,8 +387,14 @@ export function candidateKey(c: { rule: string; subject: EventSubject }): string
   return `${c.rule}::${c.subject.kind}::${c.subject.ref}`;
 }
 
+// All rules in this file declare an explicit lookback (max is silence.dormant
+// at 30d via `staleThreshold`). We stream a 30d window — bounded memory and
+// covers every rule. If a future rule needs a wider lookback, widen this
+// constant + add the rule, don't go back to full-file load.
+const ANOMALY_LOOKBACK_DAYS = 30;
 export async function loadAllEvents(): Promise<Event[]> {
-  return readAllEvents();
+  const sinceIso = new Date(Date.now() - ANOMALY_LOOKBACK_DAYS * DAY).toISOString();
+  return readEventsWindow({ since: sinceIso });
 }
 
 // Re-export for engine convenience.

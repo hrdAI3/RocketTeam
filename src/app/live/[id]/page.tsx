@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Sparkles, Shield, ArrowRight, Check, Loader2, Users } from 'lucide-react';
+import { Sparkles, Shield, ArrowLeft, ArrowRight, Check, Loader2, Users } from 'lucide-react';
 import { Avatar, MemberInline } from '../../../components/Avatar';
 import { RationaleBlock } from '../../../components/rationale';
 import { ConfidenceExplainer } from '../../../components/ConfidenceExplainer';
@@ -147,12 +147,12 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
         <div>
           <Link
             href="/tasks"
-            className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
+            className="inline-flex items-center gap-1.5 text-[12px] text-ink-quiet hover:text-ink-muted mb-3 transition-colors"
           >
-            ← Tasks
+            <ArrowLeft size={13} /> Back to Dispatch
           </Link>
           <div className="eyebrow mb-1">
-            Team simulation · <span className="font-mono">{params.id}</span>
+            Rocket Team / <Link href="/tasks" className="hover:text-ink-muted transition-colors">Dispatch</Link> / Team simulation · <span className="font-mono">{params.id}</span>
           </div>
           <h1 className="display-title">
             {state.config?.task_description ?? <span className="text-ink-quiet">Loading task…</span>}
@@ -209,7 +209,7 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
             }}
           />
           <div className="mt-3 flex items-center gap-3 text-caption">
-            <Link href="/tasks" className="btn-ghost">Back to tasks</Link>
+            <Link href="/tasks" className="btn-ghost">Back to Dispatch</Link>
             <button
               onClick={() => router.push(`/sim/${params.id}`)}
               className="btn-ghost inline-flex items-center gap-1.5"
@@ -225,7 +225,7 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
         <div className="card-warm p-6 mb-6 shadow-soft animate-fade-in flex items-center gap-3">
           <Loader2 size={18} className="text-coral animate-spin" />
           <div>
-            <div className="font-serif text-[16px] text-ink">Report Agent is synthesizing this simulation</div>
+            <div className="font-serif text-[14px] text-ink">Report Agent is synthesizing this simulation</div>
             <div className="text-caption text-ink-quiet">Final assignment recommendation incoming…</div>
           </div>
         </div>
@@ -263,7 +263,7 @@ export default function LiveSimPage({ params }: { params: { id: string } }) {
           <div className="flex items-center gap-3">
             <Loader2 size={18} className="text-coral animate-spin" />
             <div>
-              <div className="font-serif text-[16px] text-ink">Generating configuration</div>
+              <div className="font-serif text-[14px] text-ink">Generating configuration</div>
               <div className="text-caption text-ink-quiet">
                 PMA is decomposing the task and identifying stakeholders…
               </div>
@@ -303,7 +303,7 @@ function CandidatePanel({
       <div className="flex items-baseline justify-between mb-3">
         <div className="flex items-center gap-2">
           <Users size={14} className="text-coral" />
-          <h2 className="font-serif text-[16px] text-ink">Candidates picked by PMA</h2>
+          <h2 className="font-serif text-[14px] text-ink">Candidates picked by PMA</h2>
           <span className="text-[11px] text-ink-quiet font-mono">
             {config.eligible_agents.length} member{config.eligible_agents.length === 1 ? '' : 's'}
           </span>
@@ -581,7 +581,7 @@ function DecisionCard({
         <div className="grid grid-cols-2 gap-3 mb-4">
           {decomp.map((s, i) => (
             <div key={i} className="rounded-lg bg-paper-card border border-rule p-3.5">
-              <div className="font-serif text-[15px] text-ink leading-snug mb-2">{s.subtask}</div>
+              <div className="font-serif text-[13px] text-ink leading-snug mb-2">{s.subtask}</div>
               <div className="flex items-center gap-2">
                 <Avatar name={s.assignee} dept={deptMap[s.assignee]} size="sm" />
                 <div>
@@ -603,7 +603,7 @@ function DecisionCard({
 
       <footer className="mt-4 pt-4 border-t border-rule-soft flex items-center gap-3">
         <Link href="/tasks" className="btn-ghost flex items-center gap-1.5">
-          Back to tasks
+          Back to Dispatch
         </Link>
         <button
           onClick={onSeeReplay}

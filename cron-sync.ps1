@@ -14,7 +14,7 @@ Set-Location $ProjectRoot
 $started = Get-Date -Format 'o'
 Add-Content -Path $Log -Value "=== $started sync start ==="
 try {
-    & $Bun run src/scripts/sync.ts --only=cc,anomaly,summaries --lookback=2 2>&1 | Tee-Object -Append -FilePath $Log
+    & $Bun run src/scripts/sync.ts --only=cc,github,slack,anomaly,projects,summaries --lookback=2 2>&1 | Tee-Object -Append -FilePath $Log
     $exit = $LASTEXITCODE
     Add-Content -Path $Log -Value "=== $(Get-Date -Format 'o') sync done exit=$exit ==="
 } catch {

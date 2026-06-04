@@ -78,7 +78,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
         <div className="rounded-lg bg-coral-subtle/40 border border-coral-mute p-4 mb-3 flex items-start gap-3 animate-pulse-coral">
           <Loader2 size={16} className="text-coral animate-spin mt-0.5 shrink-0" />
           <div className="flex-1 min-w-0">
-            <div className="font-serif text-[14.5px] text-ink mb-1">PMA simulating…</div>
+            <div className="font-serif text-[13.5px] text-ink mb-1">PMA simulating…</div>
             <div className="text-[12px] text-ink-muted">The system is selecting candidates and running multiple rounds.</div>
           </div>
         </div>
@@ -256,7 +256,7 @@ export function TaskCard({ task, onOverride, onAccept, agentChoices = [] }: Task
               <Avatar name={r.agent_name} dept={deptMap[r.agent_name]} size="sm" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-serif text-[14px] text-ink">{r.agent_name}</span>
+                  <span className="font-serif text-[13px] text-ink">{r.agent_name}</span>
                   <span
                     className={cn(
                       'px-1.5 py-0.5 rounded font-mono text-[10px]',
@@ -295,11 +295,11 @@ function DecompositionView({
         {decomposition.map((s, i) => (
           <li key={i} className="rounded-xl bg-paper-subtle p-3.5 border border-rule-soft hover:border-rule transition-colors">
             <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="font-serif text-[15.5px] text-ink leading-snug">{s.subtask}</div>
+              <div className="font-serif text-[13.5px] text-ink leading-snug">{s.subtask}</div>
               <div className="flex items-center gap-2 shrink-0">
                 <Avatar name={s.assignee} dept={deptMap[s.assignee]} size="sm" />
                 <div>
-                  <div className="font-serif text-[14px] text-coral-deep font-semibold leading-tight">
+                  <div className="font-serif text-[13px] text-coral-deep font-semibold leading-tight">
                     {s.assignee}
                   </div>
                 </div>

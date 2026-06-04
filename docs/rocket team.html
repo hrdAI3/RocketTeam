@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rocket Team · 产品分析</title>
+<style>
+  :root{
+    --paper:#FAF9F5; --card:#FFFFFF; --subtle:#F2EFE6; --deep:#EDE9DB;
+    --ink:#1F1F1C; --ink-soft:#2A2A26; --ink-muted:#5A5A57; --ink-quiet:#8A8782; --ink-ghost:#B8B5AE;
+    --rule:#E8E3D5; --rule-strong:#DBD5C3;
+    --coral:#D97757; --coral-deep:#C76A4D; --coral-subtle:#FCEEE2;
+    --forest:#5C7F5A; --amber:#D49B40; --rust:#B85850; --sky:#5681A8; --plum:#8A5A87;
+    --serif:"Source Serif 4",Cambria,"Iowan Old Style",Georgia,"DejaVu Serif",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --mono:"JetBrains Mono",Menlo,Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--paper)}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    font-size:15.5px;line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:920px;margin:0 auto;padding:64px 28px 120px;}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--coral-deep);font-weight:600;margin-bottom:14px;}
+  h1{font-family:var(--serif);font-weight:500;font-size:46px;line-height:1.08;letter-spacing:-.02em;margin:0 0 10px;}
+  .sub{color:var(--ink-muted);font-size:16px;margin:0 0 6px;}
+  .meta{color:var(--ink-quiet);font-size:13px;font-family:var(--mono);}
+  h2{font-family:var(--serif);font-weight:500;font-size:27px;letter-spacing:-.015em;
+    margin:54px 0 8px;padding-top:26px;border-top:1px solid var(--rule);}
+  h2 .n{color:var(--coral);font-family:var(--mono);font-size:18px;font-weight:600;margin-right:10px;vertical-align:2px;}
+  h3{font-family:var(--serif);font-weight:600;font-size:19px;margin:30px 0 6px;}
+  p{margin:10px 0;}
+  a{color:var(--coral);text-decoration:none;border-bottom:1px solid var(--coral-subtle);}
+  strong{color:var(--ink);font-weight:650;}
+  code{font-family:var(--mono);font-size:.86em;background:var(--subtle);border:1px solid var(--rule);
+    border-radius:4px;padding:1px 5px;color:var(--coral-deep);}
+  pre{background:#fffdf9;border:1px solid var(--rule);border-radius:10px;padding:16px 18px;overflow-x:auto;
+    font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--ink-soft);margin:16px 0;}
+  pre code{background:none;border:none;padding:0;color:inherit;}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14px;}
+  th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-quiet);font-weight:600;padding:8px 12px;border-bottom:2px solid var(--rule-strong);}
+  td{padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  td:first-child{white-space:nowrap;font-weight:600;}
+  .lead{font-size:18px;line-height:1.6;color:var(--ink-soft);font-family:var(--serif);
+    border-left:3px solid var(--coral);padding:4px 0 4px 18px;margin:18px 0;}
+  .callout{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:18px 20px;margin:18px 0;}
+  .callout.warm{background:#FFFEFB;}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.04em;
+    padding:2px 8px;border-radius:999px;text-transform:uppercase;}
+  .ok{background:rgba(92,127,90,.14);color:var(--forest);}
+  .on{background:rgba(212,155,64,.16);color:#9a6f1f;}
+  .off{background:var(--subtle);color:var(--ink-quiet);}
+  .hi{background:var(--coral-subtle);color:var(--coral-deep);}
+  ol,ul{margin:10px 0;padding-left:22px;}
+  li{margin:5px 0;}
+  .onion{font-family:var(--mono);font-size:12.5px;line-height:1.8;background:#fffdf9;
+    border:1px solid var(--rule);border-radius:10px;padding:18px 20px;margin:16px 0;}
+  .footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--rule);
+    color:var(--ink-quiet);font-size:13px;}
+  .rocket{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+    border-radius:8px;background:var(--coral);color:#fff;font-size:15px;margin-right:10px;vertical-align:-7px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">Rocket Team · Product</div>
+  <h1><span class="rocket">🚀</span>团队 AI Leader</h1>
+  <p class="sub">扎根 Claude Code 执行真相，自动监控 + 治理「人 + Agent」混合团队</p>
+  <p class="meta">产品分析 / 迭代原因 / 未来预期 · 更新 2026-06-03（北京时间）</p>
+
+  <h2><span class="n">1</span>产品是什么</h2>
+  <p class="lead">别人观测聊天 / 工具产物，我们观测<strong>真实执行</strong>（CC session 级 hook 埋点）。在这个独有深度上，为 leader 自动监控 + 治理一个「人 + Agent」混合团队。</p>
+
+  <table>
+    <thead><tr><th>模块</th><th>做什么</th></tr></thead>
+    <tbody>
+      <tr><td>Workboard /status</td><td>leader 的注意力稀缺落地页：只显示需要介入的（异常、blocked、未归档工作、外部仓库、离职疑似、未映射 actor）。默认空屏 = 一切正常</td></tr>
+      <tr><td>CC 观测</td><td>Matrix-Riven collector hook 每个人 CC session → events.jsonl（session、tool_called、stuck、token_usage）</td></tr>
+      <tr><td>项目归因</td><td>把 CC 工作归到 tracked GitHub 仓库（= 项目）。多信号 attributor（见 §4）</td></tr>
+      <tr><td>团队 roster</td><td><code>team_roster.json</code> 单一权威源：每人 Slack / CC / GitHub 三账号 + health</td></tr>
+      <tr><td>GitHub 合规引擎</td><td>每工作日检查，缺 login / 公司邮箱 / renlab 昵称自动 Slack 催，4 级升级到 leader。Policy A：要求只落在持仓库者</td></tr>
+      <tr><td>归档提醒</td><td>CC 工作没归 tracked 仓库 → 提醒操作人建仓库（4 级工作日升级）</td></tr>
+      <tr><td>外部仓库转交</td><td>tracked 仓库在个人账号 → 催所属人转交 anzy-renlab-ai</td></tr>
+      <tr><td>Slack 双向</td><td>出站 DM + 入站 Socket Mode（员工回复自动入库）</td></tr>
+      <tr><td>AgentRun 模型</td><td>agent-native 主键：一个 CC session = 一个 AgentRun（见 §3）</td></tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">2</span>迭代原因</h2>
+
+  <h3>2.1　起点：person-axis 仪表盘</h3>
+  <p>最初是「leader 监控 24 个工程师 CC 活动」的仪表盘，主键是<strong>人</strong>。围绕「张三在干嘛」做了 roster、合规、归档、异常推送。</p>
+
+  <h3>2.2　转折：agent-native 重定位</h3>
+  <p>盘到本质：<strong>AI-native 团队里产出单位是 agent run，不是人头。</strong>14 人同时跑 40+ CC session，吞吐 agent-bound。</p>
+  <p>对标「把组织搬到 AI 上」赛道（Helio / Bloome / Lucius / Sentra / Creao），我们的独有定位：</p>
+  <p class="lead">别人的组织 Center 是<strong>新 IM</strong>或<strong>聊天记忆层</strong>。我们是第 4 类 —— Center 是 <strong>CC 执行层本身</strong>（干的活，不是聊天）。观测深度 keystroke 级，无人能及，这是护城河。</p>
+  <p>决策：主键从「人」翻转为 <strong>AgentRun</strong>。人降级成 run 的一个属性。</p>
+
+  <h3>2.3　attribution 五层洋葱（本次迭代主战场）</h3>
+  <p>AgentRun 一建，冒烟测试立刻暴露<strong>归因 97% 失败</strong>。一路挖到底，发现是数据 / 采集问题，不是算法 —— 每修一层露下一层：</p>
+  <table>
+    <thead><tr><th>层</th><th>问题</th><th>状态</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>cwd 96% 被 collector redaction 抹成 <code>[redacted]</code> —— private-path 正则贪婪吃光整条路径（违背其「只抹用户名段」的设计注释，是 bug）</td><td><span class="pill ok">解封</span> 外科手术改正则 <code>/Users/_/repo</code></td></tr>
+      <tr><td>2</td><td>commit 事件 = 0 —— extractor 发 PR/review 但不发 commit</td><td><span class="pill ok">已开</span> 3387 事件</td></tr>
+      <tr><td>3</td><td>observed_cwds 污染 —— 旧 LLM 错绑（家目录、会议纪要、E:\jingtong 全绑 hireic），连「高置信」都错</td><td><span class="pill ok">已清</span> 54→16，+deny 规则</td></tr>
+      <tr><td>4</td><td>操作人身份缺口 —— 头号 CC 操作人 <code>xuyh@renlab.ai</code>（5.9 万事件）= 徐云昊，没进 roster</td><td><span class="pill ok">已映射</span></td></tr>
+      <tr><td>5</td><td>fuzzy quote tier 净负 —— 12/16 归因错</td><td><span class="pill off">已关</span></td></tr>
+    </tbody>
+  </table>
+  <div class="callout warm">
+    <strong>核心教训：归因从来不是算法瓶颈，是上游身份 + 观测数据质量。</strong>
+    两个 workflow（16 agent、1.1M token）的价值在于<strong>证伪了「算法是问题」</strong>，把我们指向真正的瓶颈。
+  </div>
+
+  <h2><span class="n">3</span>AgentRun — agent-native 主键</h2>
+  <pre><code>AgentRun {
+  run_id          // = CC session_id
+  operator        // 解析到的人名（次要属性，不再是主键）
+  project_id      // 归因结果
+  attribution_method / confidence / evidence   // 可审计
+  cwd / branch / model
+  started_at / ended_at / last_activity_at / status (live|done|stalled)
+  tool_calls / tool_counts / files_touched / stuck_count
+  outputs[]       // commits/PRs（v1，待接产出账本）
+}</code></pre>
+  <p><code>src/lib/agent_run.ts::buildAgentRuns()</code> —— events.jsonl 按 session_id 重聚合（现成数据，无新采集）。</p>
+
+  <h2><span class="n">4</span>归因 attributor</h2>
+  <p><code>src/services/attribute_run.ts</code>，多信号、确定性优先、<strong>宁可 null 不瞎配</strong>：</p>
+  <table>
+    <thead><tr><th>rank</th><th>信号</th><th>置信</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>commit → repo → project</td><td><span class="pill hi">high</span></td><td>作者===操作人 且 commit 在 run 窗口，repo 映射项目，全一致才命中</td></tr>
+      <tr><td>2</td><td>PR/review → repo → project</td><td><span class="pill hi">high</span></td><td>同上，PR 绑 repo</td></tr>
+      <tr><td>2.5</td><td><strong>cwd 叶子 === tracked repo 名</strong></td><td><span class="pill hi">high</span></td><td><strong>本次新增收尾</strong> —— 目录名就是 repo 名（<code>D:\lll\d2p</code>→d2p）。唯一叶子索引，无碰撞。不依赖 observed_cwds，cwd 解封后立刻兑现</td></tr>
+      <tr><td>3</td><td>cwd 精确匹配 observed_cwds</td><td><span class="pill on">medium</span></td><td>+binding guard + home-root guard，污染 abstain</td></tr>
+      <tr><td>4</td><td>cwd 最长前缀</td><td><span class="pill off">low</span></td><td>+共享父目录 guard</td></tr>
+      <tr><td>5</td><td>quote 挖矿</td><td><span class="pill off">关</span></td><td>净负，默认禁，<code>enableQuoteTier</code> 可开</td></tr>
+      <tr><td>6</td><td>LLM over evidence</td><td><span class="pill off">low</span></td><td>成本受限（≥8 tool calls + budget 60），<code>disableLLM</code> 可关</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>当前覆盖率现实：</strong>历史数据 ~0%（cwd 永久 redacted 救不回；commit/PR 时间窗对不齐）。
+    <strong>前向路全修好</strong> —— 新 session 带真 cwd，cwd-leaf tier 高置信命中（已验证：李家乐→d2p、徐云昊→matrix-riven 全对）。覆盖率随新数据累积爬升。
+  </div>
+
+  <h2><span class="n">5</span>未来预期</h2>
+
+  <h3>5.1　短期：让归因兑现（数据累积中）</h3>
+  <ul>
+    <li>collector 解封只影响<strong>新 session</strong>，覆盖率未来一天随真-cwd 数据爬升</li>
+    <li>collector 备份：<code>192.168.22.88:.../bin-prod-server.cjs.bak-20260603-cwdfix</code>（回滚一条 cp + 重启）</li>
+    <li>仍露的小缺口：大家在 selected_repos <strong>之外</strong>的仓库干活 → 需自动发现 + 注册 repo</li>
+  </ul>
+
+  <h3>5.2　中期：从「检测」升「消化」（对标 Sentra）</h3>
+  <p>五个可偷方向（来自 AI-native-org 赛道调研），按价值排：</p>
+  <ol>
+    <li><strong>AgentRun 一等实体 + 身份</strong>（Helio 验证）—— 已起步</li>
+    <li><strong>主动简报</strong>（Sentra）—— <span class="pill hi">最小投入最大杠杆</span> 每项目自动状态报告 + leader 会前 context pack。把观测变综合，产品从「检测+催」升「消化+预判」= AI leader 真身第一步</li>
+    <li><strong>知识图谱</strong> who/what/when/why（Sentra）—— 扁平归因升成图</li>
+    <li><strong>程序记忆 + playbook 结晶</strong>（Lucius/Creao）—— 成功 run → 可复用模板</li>
+    <li><strong>治理护栏三件套</strong>（Helio）—— 但「强制护栏」需双向 collector（回传暂停/批准指令），是另一个项目量级</li>
+  </ol>
+
+  <h3>5.3　长期：vision → strategy → fleet 闭环</h3>
+  <div class="onion">
+vision.md（北极星，人拥有）<br/>
+&nbsp;&nbsp;↓ AI leader 拆解<br/>
+strategy（当下押注，AI leader 维护，人批准变更）<br/>
+&nbsp;&nbsp;↓<br/>
+AgentRun 舰队（派发 / 协调 / 监控，全自动）<br/>
+&nbsp;&nbsp;↓ 产出账本<br/>
+对齐度（产出有没有推近 vision？）<br/>
+&nbsp;&nbsp;↓ 没有 → 重排 strategy → 浮给人
+  </div>
+  <p class="lead">终局：<strong>人管意图，AI 管维系。</strong>人只剩三个触点 —— 写/改 vision、批准 strategy 转向、验收/仲裁。</p>
+  <p>命门：<strong>产出账本 + 对齐度测量</strong> —— 没有它，AI leader 只是高效地把可能错的东西做完。</p>
+
+  <h2><span class="n">6</span>配套 + 运维</h2>
+  <p><strong>文档：</strong><code>docs/GH_COMPLIANCE.md</code>（合规引擎）· <code>docs/TEAM_ACCOUNTS.md</code>（四账号对应）· <code>private/team_roster.json</code>（roster SOT，别手改 identity.json）</p>
+  <p><strong>运维坑：</strong></p>
+  <ul>
+    <li>改 refresh/compliance/roster/attribute/extractor 代码后<strong>必须重启 dev</strong>（长驻 monitor 单例不热重载，旧逻辑会覆盖新判定）</li>
+    <li>Slack DM 一律按 <code>user_id</code> 发，不按中文名（显示名常≠中文名）</li>
+    <li>collector 改动：SSH + base64 传输（避反斜杠 mangling）+ 改前备份 + <code>node -c</code> 语法检查 + systemd 重启</li>
+    <li>时间一律北京时间展示（存储 UTC）</li>
+  </ul>
+
+  <div class="footer">
+    Rocket Team · 团队 AI Leader · 扎根 Claude Code 执行真相<br/>
+    本页单文件、无外部依赖，可直接发给同事 / 离线打开。
+  </div>
+
+</div>
+</body>
+</html>

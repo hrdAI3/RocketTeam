@@ -5,7 +5,7 @@
 // `getAllStatus()`     → status row for every agent that has any CC event
 // `getOneStatus(name)` → deeper view: recent sessions, branches, stuck signals
 
-import { readAllEvents } from '../lib/events';
+import { streamEvents } from '../lib/events';
 import { promises as fs } from 'node:fs';
 import { PATHS } from '../lib/paths';
 import { llmCall, stripThinkBlocks } from '../lib/llm';
@@ -15,6 +15,7 @@ import type { CcLiveSnapshot, CcLiveForAgent } from './live_cc';
 import { readCachedSummaries } from './work_summary';
 import type { WorkItem } from './work_summary';
 import { buildSuppressionMap, isSuppressed } from '../lib/leader_actions';
+import { readRoster } from '../lib/team_roster';
 import {
   PACE_RISK,
   PACE_MIN_PROGRESS,
@@ -108,84 +109,120 @@ function pickCurrentSession(b: PerAgentBucket): SessionAgg | null {
   return all.find(isSubstantiveSession) ?? all[0] ?? null;
 }
 
+// Per-event accumulator. Stream-friendly — caller drives it from streamEvents.
+// Earlier this was a single-pass over a full Event[] from readAllEvents();
+// the events.jsonl crossed 500MB and that pattern OOMed. Now we stream a 7d
+// window of cc_session events and feed each line here.
+function ingestCcEventIntoBucket(
+  out: Map<string, PerAgentBucket>,
+  e: Event,
+  now: number,
+  weekCutoff: number,
+  dayCutoff: number
+): void {
+  if (e.source !== 'cc_session') return;
+  // Use actor (always resolved to a roster name) instead of subject.ref,
+  // because subject.kind is 'session' for raw_blob events (e.g. 栾蕊加's
+  // `.cc-status` hook files emit only raw_blob frames, never an `agent`
+  // subject). Filtering on `subject.kind === 'agent'` made her look 4d
+  // dormant when she'd just been active hours ago.
+  const name = e.actor;
+  if (typeof name !== 'string' || !name) return;
+  if (name.startsWith('unknown:')) return; // unresolved actor — don't bucket
+  const t = tsMs(e.ts);
+  if (t < weekCutoff) return;
+  let b = out.get(name);
+  if (!b) {
+    b = emptyBucket();
+    out.set(name, b);
+  }
+  if (t > b.latestActivityTs) b.latestActivityTs = t;
+
+  void now; // reserved — passed for future "stale session" pruning
+  const f = e.evidence.fields ?? {};
+  const sid = typeof f.sessionId === 'string' ? (f.sessionId as string) : null;
+  let s: SessionAgg | null = null;
+  if (sid) {
+    s = b.sessions.get(sid) ?? null;
+    if (!s) {
+      s = {
+        sessionId: sid,
+        start: null,
+        end: null,
+        lastEventTs: t,
+        toolSum: 0,
+        stuckCount: 0,
+        toolCounts: new Map(),
+        lastQuoteTs: 0
+      };
+      b.sessions.set(sid, s);
+    }
+    if (t > s.lastEventTs) s.lastEventTs = t;
+    if (typeof f.cwd === 'string' && !s.cwd) s.cwd = f.cwd as string;
+    if (typeof f.gitBranch === 'string' && !s.gitBranch) s.gitBranch = f.gitBranch as string;
+    if (typeof f.model === 'string' && !s.model) s.model = f.model as string;
+    if (e.evidence.quote && t >= s.lastQuoteTs) {
+      s.lastQuoteTs = t;
+      s.lastQuote = e.evidence.quote;
+    }
+  }
+
+  switch (e.type) {
+    case 'cc.session_started':
+      b.sessionStartTs.push(t);
+      if (s) s.start = t;
+      break;
+    case 'cc.session_ended':
+      if (s) s.end = t;
+      break;
+    case 'cc.tool_called': {
+      const tool = (f.tool as string) ?? 'unknown';
+      if (s) {
+        s.toolSum++;
+        s.toolCounts.set(tool, (s.toolCounts.get(tool) ?? 0) + 1);
+      }
+      if (t >= dayCutoff) b.toolCounts.set(tool, (b.toolCounts.get(tool) ?? 0) + 1);
+      break;
+    }
+    case 'cc.token_usage': {
+      b.tokens.input += (f.input_tokens as number) ?? 0;
+      b.tokens.output += (f.output_tokens as number) ?? 0;
+      b.tokens.cacheRead += (f.cache_read_input_tokens as number) ?? 0;
+      b.tokens.cacheCreate += (f.cache_creation_input_tokens as number) ?? 0;
+      break;
+    }
+    case 'cc.stuck_signal': {
+      if (s) s.stuckCount++;
+      if (t >= dayCutoff) b.stuck24h.push(e);
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+// Stream a 7d window of cc_session events into per-agent buckets. Bounded
+// memory: at most one line in flight + per-agent aggregates.
+async function buildBucketsStreaming(now: number): Promise<Map<string, PerAgentBucket>> {
+  const out = new Map<string, PerAgentBucket>();
+  const weekCutoff = now - WEEK_MS;
+  const dayCutoff = now - DAY_MS;
+  const sinceIso = new Date(weekCutoff).toISOString();
+  await streamEvents({ source: 'cc_session', since: sinceIso }, (e) => {
+    ingestCcEventIntoBucket(out, e, now, weekCutoff, dayCutoff);
+  });
+  return out;
+}
+
+// Legacy entry point — still exported so any non-migrated test/helper that
+// hands us an Event[] keeps working. Production callers should use
+// buildBucketsStreaming() above.
 function buildBuckets(events: Event[], now: number): Map<string, PerAgentBucket> {
   const out = new Map<string, PerAgentBucket>();
   const weekCutoff = now - WEEK_MS;
   const dayCutoff = now - DAY_MS;
   for (const e of events) {
-    if (e.subject.kind !== 'agent') continue;
-    if (e.source !== 'cc_session') continue;
-    const t = tsMs(e.ts);
-    if (t < weekCutoff) continue;
-    const name = e.subject.ref;
-    let b = out.get(name);
-    if (!b) {
-      b = emptyBucket();
-      out.set(name, b);
-    }
-    if (t > b.latestActivityTs) b.latestActivityTs = t;
-
-    const f = e.evidence.fields ?? {};
-    const sid = typeof f.sessionId === 'string' ? (f.sessionId as string) : null;
-    let s: SessionAgg | null = null;
-    if (sid) {
-      s = b.sessions.get(sid) ?? null;
-      if (!s) {
-        s = {
-          sessionId: sid,
-          start: null,
-          end: null,
-          lastEventTs: t,
-          toolSum: 0,
-          stuckCount: 0,
-          toolCounts: new Map(),
-          lastQuoteTs: 0
-        };
-        b.sessions.set(sid, s);
-      }
-      if (t > s.lastEventTs) s.lastEventTs = t;
-      // Context fields only appear on session_started; backfill if absent.
-      if (typeof f.cwd === 'string' && !s.cwd) s.cwd = f.cwd as string;
-      if (typeof f.gitBranch === 'string' && !s.gitBranch) s.gitBranch = f.gitBranch as string;
-      if (typeof f.model === 'string' && !s.model) s.model = f.model as string;
-      if (e.evidence.quote && t >= s.lastQuoteTs) {
-        s.lastQuoteTs = t;
-        s.lastQuote = e.evidence.quote;
-      }
-    }
-
-    switch (e.type) {
-      case 'cc.session_started':
-        b.sessionStartTs.push(t);
-        if (s) s.start = t;
-        break;
-      case 'cc.session_ended':
-        if (s) s.end = t;
-        break;
-      case 'cc.tool_called': {
-        const tool = (f.tool as string) ?? 'unknown';
-        if (s) {
-          s.toolSum++;
-          s.toolCounts.set(tool, (s.toolCounts.get(tool) ?? 0) + 1);
-        }
-        if (t >= dayCutoff) b.toolCounts.set(tool, (b.toolCounts.get(tool) ?? 0) + 1);
-        break;
-      }
-      case 'cc.token_usage': {
-        b.tokens.input += (f.input_tokens as number) ?? 0;
-        b.tokens.output += (f.output_tokens as number) ?? 0;
-        b.tokens.cacheRead += (f.cache_read_input_tokens as number) ?? 0;
-        b.tokens.cacheCreate += (f.cache_creation_input_tokens as number) ?? 0;
-        break;
-      }
-      case 'cc.stuck_signal': {
-        if (s) s.stuckCount++;
-        if (t >= dayCutoff) b.stuck24h.push(e);
-        break;
-      }
-      default:
-        break;
-    }
+    ingestCcEventIntoBucket(out, e, now, weekCutoff, dayCutoff);
   }
   return out;
 }
@@ -216,19 +253,43 @@ async function listAllAgentNames(): Promise<string[]> {
 
 export async function getAllStatus(opts?: { onlyWithActivity?: boolean }): Promise<AgentCcStatus[]> {
   const now = Date.now();
-  const [events, allNames] = await Promise.all([readAllEvents(), listAllAgentNames()]);
-  const buckets = buildBuckets(events, now);
-  const names = new Set<string>([...buckets.keys(), ...(opts?.onlyWithActivity ? [] : allNames)]);
+  // Stream a 7d cc_session window (bounded memory) instead of slurping the
+  // full 500MB events.jsonl. Roster's canonical `cc.last_seen_at` wins for
+  // the "is this person dormant?" decision — the event window is only the
+  // source for tokens / tools / stuck / per-session aggregates inside the
+  // window.
+  const [buckets, allNames, roster] = await Promise.all([
+    buildBucketsStreaming(now),
+    listAllAgentNames(),
+    readRoster()
+  ]);
+  const rosterLastSeen = new Map<string, string>();
+  for (const m of roster.members) {
+    if (m.cc?.last_seen_at) rosterLastSeen.set(m.name, m.cc.last_seen_at);
+  }
+  const names = new Set<string>([
+    ...buckets.keys(),
+    ...rosterLastSeen.keys(),
+    ...(opts?.onlyWithActivity ? [] : allNames)
+  ]);
   const out: AgentCcStatus[] = [];
   for (const name of names) {
     const b = buckets.get(name) ?? emptyBucket();
-    const lastTs = b.latestActivityTs > 0 ? b.latestActivityTs : null;
+    // Prefer roster's canonical timestamp; fall back to bucket if roster
+    // has no record. Bucket alone misses anyone whose CC traffic predates the
+    // 7d window but whose roster row is still fresh.
+    const rosterTsIso = rosterLastSeen.get(name) ?? null;
+    const rosterTsMs = rosterTsIso ? Date.parse(rosterTsIso) : 0;
+    const bucketTsMs = b.latestActivityTs > 0 ? b.latestActivityTs : 0;
+    const lastTs = Math.max(rosterTsMs, bucketTsMs);
+    const lastTsOrNull = lastTs > 0 ? lastTs : null;
+    if (opts?.onlyWithActivity && lastTsOrNull === null) continue;
     const cur = pickCurrentSession(b);
     out.push({
       name,
       resolved: !name.startsWith('unknown:'),
-      lastSessionAt: lastTs ? new Date(lastTs).toISOString() : null,
-      activityFlag: flagFor(lastTs, now),
+      lastSessionAt: lastTsOrNull ? new Date(lastTsOrNull).toISOString() : null,
+      activityFlag: flagFor(lastTsOrNull, now),
       topicHint: cur?.lastQuote ?? null,
       cwdHint: cur?.cwd ?? null,
       gitBranchHint: cur?.gitBranch ?? null,
@@ -274,7 +335,7 @@ export interface RosterRow {
   // items (title + status) lifted from the cached work summary. The /status
   // roster shows these as a vertical list under the name to reflect that one
   // person often has several streams in flight at once.
-  workItems?: Array<{ title: string; status: '进行中' | '卡住' | '调研中' | '已完成'; repo: string }>;
+  workItems?: Array<{ title: string; status: '进行中' | '卡住' | '已完成'; repo: string }>;
   // Live overlay — present only when the collector's near-real-time
   // /api/cc-status/all is wired and this person is running CC right now. The
   // /status roster surfaces just a couple of "hot" signals from it (context
@@ -543,19 +604,28 @@ export interface OneAgentDetail extends AgentCcStatus {
 
 export async function getOneStatus(name: string): Promise<OneAgentDetail | null> {
   const now = Date.now();
-  const [events, lf] = await Promise.all([readAllEvents(), getLiveStatusForName(name)]);
-  const buckets = buildBuckets(events, now);
+  const [buckets, lf, roster] = await Promise.all([
+    buildBucketsStreaming(now),
+    getLiveStatusForName(name),
+    readRoster()
+  ]);
+  const rosterMember = roster.members.find((m) => m.name === name);
+  const rosterLastSeenIso = rosterMember?.cc?.last_seen_at ?? null;
   const b = buckets.get(name);
   const lc = lf?.current;
   if (!b) {
-    // No ingested CC traffic for this name. If they're live right now, build a
-    // detail from the live snapshot alone; otherwise the all-null empty state.
+    // No ingested CC traffic for this name in the 7d window. If they're live
+    // right now or roster has a canonical last_seen, surface that; otherwise
+    // the all-null empty state.
     const liveLastTs = lc?.stale_seconds != null ? now - lc.stale_seconds * 1000 : null;
+    const rosterTsMs = rosterLastSeenIso ? Date.parse(rosterLastSeenIso) : 0;
+    const effective = Math.max(liveLastTs ?? 0, rosterTsMs);
+    const effectiveIso = effective > 0 ? new Date(effective).toISOString() : null;
     return {
       name,
       resolved: !name.startsWith('unknown:'),
-      lastSessionAt: liveLastTs != null ? new Date(liveLastTs).toISOString() : null,
-      activityFlag: liveFlag(lc?.stale_seconds) ?? 'never',
+      lastSessionAt: effectiveIso,
+      activityFlag: liveFlag(lc?.stale_seconds) ?? flagFor(effective > 0 ? effective : null, now),
       topicHint: null,
       cwdHint: lc?.cwd ?? null,
       gitBranchHint: (lc?.git_branch && lc.git_branch !== 'HEAD' ? lc.git_branch : null) ?? null,
@@ -597,7 +667,14 @@ export async function getOneStatus(name: string): Promise<OneAgentDetail | null>
       stuckCount: s.stuckCount
     }));
 
-  const eventsLastTs = b.latestActivityTs > 0 ? b.latestActivityTs : null;
+  // Prefer roster's canonical `cc.last_seen_at` over the bucket's tail when it's
+  // fresher — same rule as getAllStatus. The 7d streaming window can miss a
+  // recently-active person whose CC traffic is older than 7d but whose roster
+  // row updated this morning.
+  const rosterLastSeenMs = rosterLastSeenIso ? Date.parse(rosterLastSeenIso) : 0;
+  const bucketLastMs = b.latestActivityTs > 0 ? b.latestActivityTs : 0;
+  const effectiveLastMs = Math.max(rosterLastSeenMs, bucketLastMs);
+  const eventsLastTs = effectiveLastMs > 0 ? effectiveLastMs : null;
   // "current repo / branch / cwd" reflects the most recent SUBSTANTIVE session,
   // so a trailing 78-second housekeeping blip never redefines "当前分支".
   // Live data, when present, is strictly fresher and wins.
@@ -733,14 +810,9 @@ const ASK_SYSTEM = `你是 leader 安子岩的助手。leader 问某个团队成
 回答简洁，中文，2-5 句，必要时列要点。如果数据不足以回答，直说「数据不足」。`;
 
 function buildAskContext(name: string, events: Event[]): string {
-  const cutoff = Date.now() - 7 * DAY_MS;
-  const relevant = events.filter((e) => {
-    const t = tsMs(e.ts);
-    if (t < cutoff) return false;
-    if (e.subject.kind === 'agent' && e.subject.ref === name) return true;
-    if (e.actor === name) return true;
-    return false;
-  });
+  // events is already pre-filtered to the trailing 7d for `name` — caller
+  // does the streaming filter so this stays a pure render.
+  const relevant = events;
   if (relevant.length === 0) return `（近 7 天没有任何关于 ${name} 的事件）`;
   const lines: string[] = [];
   for (const e of relevant.slice(-120)) {
@@ -764,7 +836,16 @@ export async function askAboutAgentCC(
   question: string,
   opts?: { signal?: AbortSignal }
 ): Promise<string> {
-  const events = await readAllEvents();
+  // Stream the trailing 7d window only — was readAllEvents() (500MB OOM risk).
+  const sinceIso = new Date(Date.now() - 7 * DAY_MS).toISOString();
+  const events: Event[] = [];
+  await streamEvents({ since: sinceIso }, (e) => {
+    if (e.subject.kind === 'agent' && e.subject.ref === name) {
+      events.push(e);
+    } else if (e.actor === name) {
+      events.push(e);
+    }
+  });
   const ctx = buildAskContext(name, events);
   const raw = await llmCall({
     system: ASK_SYSTEM,

@@ -16,7 +16,9 @@ export async function GET(): Promise<Response> {
       login: cfg.login,
       connected_at: cfg.connected_at,
       last_sync_at: cfg.last_sync_at,
-      selected_repos: cfg.selected_repos ?? []
+      selected_repos: cfg.selected_repos ?? [],
+      auto_sync_enabled: Boolean(cfg.auto_sync_enabled),
+      auto_sync_interval_min: cfg.auto_sync_interval_min ?? 15
     }),
     { headers: { 'Content-Type': 'application/json' } }
   );

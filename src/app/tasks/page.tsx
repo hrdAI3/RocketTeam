@@ -1,21 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, ChevronDown, ChevronRight, Loader2, FolderKanban } from 'lucide-react';
-import { useToast } from '../../components/Toast';
+import Link from 'next/link';
+import { RefreshCw, ChevronDown, ChevronRight, Loader2, FolderKanban, FlaskConical, Zap } from 'lucide-react';
 import type { Task, PMADecisionV2 } from '@/types';
+import { Avatar } from '@/components/Avatar';
+import { ConfidenceRing } from '@/components/ConfidenceRing';
 
 // Projects — the record of tasks dispatched via the CLI (`team:dispatch`),
 // the simulation's predicted owners, and the leader's accept/override calls.
-// This page does NOT create tasks. Lean: status segments + expandable rows.
-// Each row is a one-line summary by default; expand to see the breakdown.
+// This page does NOT create tasks. Read-only board: aggregate strip + tab
+// filter + a bordered list of rows. Each row links through to the full
+// simulation trace at /predict/[task_id]; expand for the per-subtask breakdown.
 
 type Status = Task['status'];
 
 const STATUS_META: Record<Status, { label: string; dot: string; pill: string; rank: number }> = {
-  predicting: { label: 'Predicting', dot: 'bg-sky', pill: 'bg-sky/10 text-sky', rank: 1 },
+  predicting: { label: 'Simulating', dot: 'bg-sky', pill: 'bg-sky/10 text-sky', rank: 1 },
   predicted: { label: 'Awaiting decision', dot: 'bg-amber', pill: 'bg-amber/10 text-amber', rank: 0 },
-  accepted: { label: 'Accepted', dot: 'bg-forest', pill: 'bg-forest/10 text-forest', rank: 2 },
+  accepted: { label: 'Dispatched', dot: 'bg-forest', pill: 'bg-forest/10 text-forest', rank: 2 },
   overridden: { label: 'Reassigned', dot: 'bg-coral', pill: 'bg-coral-subtle text-coral-deep', rank: 2 },
   completed: { label: 'Done', dot: 'bg-ink-quiet', pill: 'bg-paper-subtle text-ink-muted', rank: 3 }
 };
@@ -24,9 +27,9 @@ type Filter = 'all' | Status;
 const FILTER_ORDER: Filter[] = ['all', 'predicted', 'predicting', 'accepted', 'overridden', 'completed'];
 const FILTER_LABEL: Record<Filter, string> = {
   all: 'All',
-  predicting: 'Predicting',
-  predicted: 'Awaiting decision',
-  accepted: 'Accepted',
+  predicting: 'Simulating',
+  predicted: 'Awaiting',
+  accepted: 'Dispatched',
   overridden: 'Reassigned',
   completed: 'Done'
 };
@@ -50,8 +53,32 @@ function fmtDate(s: string | null | undefined): string {
 
 function v2(d: Task['decision']): PMADecisionV2 | null {
   if (!d) return null;
-  if ('decomposition' in d || 'sim_replay_id' in d) return d as PMADecisionV2;
+  // PMA v2 decisions always carry a `candidates` array (12 candidate scores).
+  // Legacy detection via `decomposition` / `sim_replay_id` covered an older
+  // simulator. Either marker → treat as v2.
+  if ('candidates' in d || 'decomposition' in d || 'sim_replay_id' in d) {
+    return d as PMADecisionV2;
+  }
   return null;
+}
+
+// v2 stores top-level confidence as calibrated_confidence; older shape used
+// confidence. Pick whichever is present.
+function confOf(d: PMADecisionV2 | null): number | undefined {
+  if (!d) return undefined;
+  const dd = d as { calibrated_confidence?: number; confidence?: number };
+  if (typeof dd.calibrated_confidence === 'number') return dd.calibrated_confidence;
+  if (typeof dd.confidence === 'number') return dd.confidence;
+  return undefined;
+}
+
+// v2 subtask_split rows — actionable per-subtask assignments. Typed loosely
+// here because the field isn't declared on PMADecisionV2 (runtime-only shape).
+type SubSplitRow = { subtask: string; suggested_owner?: string | null; alternatives: string[]; why?: string };
+function subSplitOf(d: PMADecisionV2 | null): SubSplitRow[] | null {
+  if (!d) return null;
+  const rows = (d as { subtask_split?: SubSplitRow[] }).subtask_split;
+  return rows && rows.length > 0 ? rows : null;
 }
 
 function assigneesOf(t: Task): string[] {
@@ -74,9 +101,7 @@ function simIdOf(t: Task): string | null {
 }
 
 export default function ProjectsPage() {
-  const toast = useToast();
   const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [agentNames, setAgentNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
@@ -89,15 +114,8 @@ export default function ProjectsPage() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [tRes, aRes] = await Promise.all([
-        fetch('/api/tasks', { cache: 'no-store' }),
-        fetch('/api/agents', { cache: 'no-store' })
-      ]);
+      const tRes = await fetch('/api/tasks', { cache: 'no-store' });
       if (tRes.ok) setTasks(((await tRes.json()) as { tasks: Task[] }).tasks);
-      if (aRes.ok) {
-        const a = (await aRes.json()) as { agents: Array<{ name: string; tier?: string; _error?: string }> };
-        setAgentNames(a.agents.filter((x) => !x._error && x.tier !== 'stub').map((x) => x.name));
-      }
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -132,47 +150,36 @@ export default function ProjectsPage() {
       return next;
     });
 
-  const onAccept = async (taskId: string) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}/accept`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-      if (!res.ok) {
-        const e = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(e.error ?? `accept ${res.status}`);
-      }
-      toast.push('Accepted', 'success');
-      void refresh();
-    } catch (err) {
-      toast.push((err as Error).message, 'error');
-    }
-  };
+  // Accept / override happen in the CC chat via /dispatch, not here.
+  // This page is read-only — observe predictions, click through to replay.
 
-  const onOverride = async (taskId: string, target: string) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}/override`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ override_to: target })
-      });
-      if (!res.ok) throw new Error(`override ${res.status}`);
-      toast.push(`Reassigned → ${target}`, 'success');
-      void refresh();
-    } catch (err) {
-      toast.push((err as Error).message, 'error');
-    }
-  };
+  // Aggregate strip — "Awaiting" is the cell the leader cares about, so it
+  // owns more visual weight (amber tint + bigger number + pulsing dot when > 0).
+  const strip = [
+    { k: 'Awaiting', v: counts.predicted, dot: 'bg-amber', hero: true },
+    { k: 'Simulating', v: counts.predicting, dot: 'bg-sky', hero: false },
+    { k: 'Dispatched', v: counts.accepted, dot: 'bg-forest', hero: false },
+    { k: 'Reassigned', v: counts.overridden, dot: 'bg-coral', hero: false },
+    { k: 'Done', v: counts.completed, dot: 'bg-ink-quiet', hero: false }
+  ];
 
   return (
     <div className="px-12 py-10 max-w-[1040px] mx-auto">
-      <header className="flex items-end justify-between gap-4 mb-3">
+      <header className="flex items-end justify-between gap-4 mb-7">
         <div>
-          <div className="eyebrow mb-2">Rocket Team / Projects</div>
-          <h1 className="display-title">Projects</h1>
+          <div className="eyebrow mb-2">Rocket Team / Dispatch</div>
+          <h1 className="display-title">Dispatch</h1>
+          <p className="text-[13px] text-ink-muted mt-2 max-w-xl leading-relaxed">
+            Tasks dispatched via PMA v2. Click a row to inspect the full
+            simulation trace. To dispatch, use{' '}
+            <code className="font-mono text-[12px] px-1 py-0.5 mx-1 bg-paper-subtle rounded">/dispatch</code>{' '}
+            inside Claude Code.
+          </p>
         </div>
-        <button onClick={refresh} aria-label="Refresh" className="p-2 rounded-md text-ink-quiet hover:text-ink hover:bg-paper-subtle transition-colors mb-0.5">
+        <button onClick={refresh} aria-label="Refresh" className="p-2 rounded-md text-ink-quiet hover:text-ink hover:bg-paper-subtle transition-colors">
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
         </button>
       </header>
-      <div className="mb-6" />
 
       {error && (
         <div className="rounded-xl border border-rust bg-paper-card p-4 mb-6 text-body text-ink">
@@ -180,8 +187,41 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* Status segments — only shown when there are tasks. "All" + the active
-          filter always present; otherwise only non-empty statuses (no dead "0" tabs). */}
+      {/* Aggregate strip — 5 cells, "Awaiting" is the hero. Only shown when
+          there are tasks. */}
+      {tasks && tasks.length > 0 && (
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr_1fr] rounded-xl border border-rule bg-paper-card overflow-hidden mb-6">
+          {strip.map((s, i) => {
+            const live = s.hero && s.v > 0;
+            return (
+              <div
+                key={s.k}
+                className={`flex flex-col gap-1 ${s.hero ? 'px-5 py-4' : 'px-4 py-3.5'} ${
+                  i === 0 ? '' : 'border-l border-rule'
+                } ${live ? 'bg-amber/[0.06]' : ''}`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${s.dot} ${live ? 'animate-pulse-coral' : ''}`} />
+                  <span className={`eyebrow ${live ? 'text-amber' : 'text-ink-quiet'}`}>{s.k}</span>
+                </div>
+                <span
+                  className={`font-serif tabular-nums leading-none tracking-tight font-medium ${
+                    s.hero ? 'text-[36px]' : 'text-[22px]'
+                  } ${live ? 'text-amber' : 'text-ink'}`}
+                >
+                  {s.v}
+                </span>
+                {live && (
+                  <span className="text-[11px] text-ink-muted mt-0.5">pending /dispatch accept or override</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Tab filter — "All" + the active filter always present; otherwise only
+          non-empty statuses (no dead "0" tabs). */}
       {tasks && tasks.length > 0 && (
         <div className="flex items-end gap-1 mb-5 border-b border-rule">
           {FILTER_ORDER.filter((f) => f === 'all' || f === filter || counts[f] > 0).map((f) => {
@@ -206,7 +246,7 @@ export default function ProjectsPage() {
       {loading && !tasks && (
         <div className="rounded-xl border border-rule overflow-hidden divide-y divide-rule">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-12 bg-paper-card animate-pulse" />
+            <div key={i} className="h-14 bg-paper-card animate-pulse" />
           ))}
         </div>
       )}
@@ -216,9 +256,10 @@ export default function ProjectsPage() {
           <FolderKanban size={24} strokeWidth={1.6} className="text-ink-ghost mx-auto mb-3" />
           <p className="font-serif text-[18px] text-ink mb-1.5">No tasks yet</p>
           <p className="text-[13px] text-ink-muted leading-relaxed max-w-md mx-auto">
-            After scoping a task in Claude Code, dispatch it with{' '}
-            <code className="font-mono text-[12px] px-1.5 py-0.5 bg-paper-subtle rounded">team:dispatch &quot;task description&quot;</code>.{' '}
-            PMA will simulate the best owner and surface the recommendation here for you to decide.
+            Dispatch from any Claude Code session with{' '}
+            <code className="font-mono text-[12px] px-1.5 py-0.5 bg-paper-subtle rounded">/dispatch</code>.
+            PMA simulates the 12-member team across three reasoning paths
+            and hands the decision back to you.
           </p>
         </div>
       )}
@@ -230,18 +271,28 @@ export default function ProjectsPage() {
       )}
 
       {!loading && visible && visible.length > 0 && (
-        <div className="rounded-xl border border-rule overflow-hidden divide-y divide-rule">
+        <div className="rounded-xl border border-rule overflow-hidden divide-y divide-rule bg-paper-card">
           {visible.map((t) => (
             <TaskRow
               key={t.id}
               task={t}
               expanded={expanded.has(t.id)}
               onToggle={() => toggle(t.id)}
-              agentNames={agentNames}
-              onAccept={() => onAccept(t.id)}
-              onOverride={(to) => onOverride(t.id, to)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Footer info box — read-only board note. */}
+      {tasks && tasks.length > 0 && (
+        <div className="mt-5 flex items-start gap-2.5 rounded-xl border border-rule bg-paper-subtle px-4 py-3 text-[12px] text-ink-muted leading-relaxed">
+          <Zap size={13} strokeWidth={2.2} className="text-coral mt-0.5 shrink-0" />
+          <span>
+            <strong className="font-serif font-medium text-ink">Read-only board.</strong>{' '}
+            Accept / override happens inside Claude Code via{' '}
+            <code className="font-mono text-[11px] px-1 py-0.5 bg-paper-card rounded">/dispatch</code>. Top1 is
+            whichever candidate survives the multi-round BID / DEFER / OBJECT / COMMIT simulation — not a static rank.
+          </span>
         </div>
       )}
     </div>
@@ -251,80 +302,172 @@ export default function ProjectsPage() {
 function TaskRow({
   task,
   expanded,
-  onToggle,
-  agentNames,
-  onAccept,
-  onOverride
+  onToggle
 }: {
   task: Task;
   expanded: boolean;
   onToggle: () => void;
-  agentNames: string[];
-  onAccept: () => void;
-  onOverride: (to: string) => void;
 }) {
   const meta = STATUS_META[task.status];
   const assignees = assigneesOf(task);
   const decision = v2(task.decision);
   const simId = simIdOf(task);
-  const [picking, setPicking] = useState(false);
+
+  const conf = confOf(decision);
+  // v2 subtask_split — actionable per-subtask assignments. Prefer this over
+  // the legacy v1 decomposition.
+  const subSplit = subSplitOf(decision);
+  const primaryAssignee = assignees[0] ?? null;
+  const simulating = task.status === 'predicting';
 
   return (
-    <div className={task.status === 'predicted' ? 'bg-amber/[0.03]' : 'bg-paper-card'}>
-      <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-paper-subtle transition-colors">
-        <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono shrink-0 ${meta.pill}`}>{meta.label}</span>
-        <span className="text-[14px] text-ink truncate flex-1 min-w-0">{task.description}</span>
-        {task.status === 'predicting' ? (
-          <span className="text-[11.5px] text-sky inline-flex items-center gap-1 shrink-0"><Loader2 size={11} className="animate-spin" /> Predicting</span>
-        ) : assignees.length > 0 ? (
-          <span className="text-[12px] text-ink-soft shrink-0 max-w-[12rem] truncate">→ {assignees.join(', ')}</span>
-        ) : null}
-        <span className="text-[11.5px] text-ink-quiet shrink-0 w-20 text-right tabular-nums">{ageStr(task.created_at)}</span>
-        {expanded ? <ChevronDown size={14} className="text-ink-quiet shrink-0" /> : <ChevronRight size={14} className="text-ink-quiet shrink-0" />}
-      </button>
+    <div className="group bg-paper-card hover:bg-paper-subtle/40 transition-colors">
+      {/* Top strip — the signature row: id mono · status pill (pulsing dot when
+          simulating) · description · sim badge · assignee chip · ConfidenceRing
+          · age · chevron. Description links through to the trace. */}
+      <div className="flex items-center gap-4 px-5 py-3.5">
+        <code className="font-mono text-[11px] text-ink-quiet w-16 shrink-0 truncate" title={task.id}>
+          {task.id}
+        </code>
 
-      {/* Awaiting decision: inline accept / reassign under the row */}
-      {task.status === 'predicted' && (
-        <div className="px-4 pb-3 -mt-1 flex items-center gap-2 flex-wrap">
-          {typeof decision?.confidence === 'number' && (
-            <span className="text-[11px] text-ink-quiet tabular-nums">confidence {Math.round(decision.confidence * 100)}%</span>
-          )}
-          <button onClick={onAccept} className="text-[12px] px-2.5 py-1 rounded-md bg-forest/10 text-forest hover:bg-forest/15 transition-colors">Accept</button>
-          {!picking ? (
-            <button onClick={() => setPicking(true)} className="text-[12px] px-2.5 py-1 rounded-md border border-rule text-ink-muted hover:border-rule-strong transition-colors">Reassign…</button>
-          ) : (
-            <select
-              autoFocus
-              onChange={(e) => {
-                if (e.target.value) onOverride(e.target.value);
-                setPicking(false);
-              }}
-              onBlur={() => setPicking(false)}
-              className="text-[12px] px-2 py-1 rounded-md border border-rule bg-paper-card text-ink"
-              defaultValue=""
-            >
-              <option value="" disabled>Reassign to…</option>
-              {agentNames.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
+        <span className={`inline-flex items-center gap-1.5 text-[10.5px] px-2.5 py-0.5 rounded-full shrink-0 justify-center min-w-[104px] ${meta.pill}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${meta.dot} ${simulating ? 'animate-pulse-coral' : ''}`} />
+          {meta.label}
+        </span>
 
-      {/* Expanded: the breakdown the leader needs at a glance — facts +
-          simulated split. The full reasoning prose lives behind the replay link. */}
+        <Link
+          href={`/predict/${encodeURIComponent(task.id)}`}
+          className="font-serif text-[15px] text-ink hover:text-coral-deep transition-colors leading-snug flex-1 min-w-0 truncate"
+          title="Open simulation trace"
+        >
+          {task.description}
+        </Link>
+
+        {/* sim badge — "Nc · NR" hint that this came from a simulation */}
+        {subSplit && (
+          <span className="font-mono text-[10.5px] text-ink-quiet shrink-0 px-1.5 py-0.5 rounded bg-paper-subtle tracking-wide">
+            {subSplit.length} subtasks
+          </span>
+        )}
+
+        {/* assignee avatar chip */}
+        {primaryAssignee ? (
+          <span
+            className={`inline-flex items-center gap-1.5 pl-1 pr-2.5 py-0.5 rounded-full shrink-0 whitespace-nowrap border ${
+              task.status === 'overridden' ? 'bg-coral-subtle border-coral/40' : 'bg-paper-subtle border-rule'
+            }`}
+          >
+            <Avatar name={primaryAssignee} size="sm" />
+            <span className="font-serif text-[12.5px] text-ink-soft">{primaryAssignee}</span>
+            {assignees.length > 1 && (
+              <span className="font-mono text-[10px] text-ink-quiet">+{assignees.length - 1}</span>
+            )}
+          </span>
+        ) : simulating ? (
+          <span className="text-[11.5px] text-sky italic shrink-0 inline-flex items-center gap-1">
+            <Loader2 size={11} className="animate-spin" /> simulating…
+          </span>
+        ) : (
+          <span className="text-[11.5px] text-ink-quiet italic shrink-0">no owner</span>
+        )}
+
+        {/* ConfidenceRing */}
+        {typeof conf === 'number' ? (
+          <ConfidenceRing value={conf} size={30} />
+        ) : (
+          <span className="w-[30px] h-[30px] shrink-0" />
+        )}
+
+        <span className="font-mono tabular-nums text-[11px] text-ink-quiet w-[64px] text-right shrink-0">
+          {ageStr(task.created_at)}
+        </span>
+
+        <button
+          onClick={onToggle}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
+          className="shrink-0 text-ink-ghost hover:text-ink p-1"
+        >
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+      </div>
+
+      {/* Expanded: subtask split + facts + links */}
       {expanded && (
-        <div className="px-4 pb-4 pt-1 border-t border-rule-soft bg-paper-subtle/30">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2 text-[12.5px] mb-3">
+        <div className="px-5 pb-5 pt-3 border-t border-rule-soft bg-paper-subtle/40">
+          {/* Subtask split — one line per subtask: serif description left,
+              assignee pill right. */}
+          {subSplit && (
+            <div className="mb-4 rounded-lg border border-rule overflow-hidden divide-y divide-rule-soft">
+              {subSplit.map((row, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 px-3.5 py-2 bg-paper-card hover:bg-paper-subtle/30 transition-colors"
+                >
+                  <span className="text-[10px] font-mono text-ink-quiet tabular-nums w-5 shrink-0">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <span className="font-serif text-[13.5px] text-ink leading-snug flex-1 min-w-0 truncate">
+                    {row.subtask}
+                  </span>
+                  <span className="text-ink-ghost shrink-0">→</span>
+                  {row.suggested_owner ? (
+                    <span className="inline-flex items-center gap-1.5 shrink-0">
+                      <Avatar name={row.suggested_owner} size="sm" />
+                      <span className="font-serif text-[13px] text-coral-deep">{row.suggested_owner}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[11.5px] text-ink-quiet italic shrink-0">unassigned</span>
+                  )}
+                  {row.alternatives.length > 0 && (
+                    <span className="text-[10.5px] text-ink-quiet shrink-0 hidden md:inline">
+                      backup: {row.alternatives.slice(0, 2).join(', ')}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2 text-[12.5px] mb-4">
             {task.deadline && <KV label="Due" value={fmtDate(task.deadline)} />}
             {task.importance && task.urgency && (
-              <KV label="Priority" value={`${task.importance === 'high' ? 'Important' : 'Not important'} · ${task.urgency === 'high' ? 'Urgent' : 'Not urgent'}`} />
+              <KV label="Priority" value={`${task.importance === 'high' ? 'Important' : 'Low'} · ${task.urgency === 'high' ? 'Urgent' : 'Not urgent'}`} />
             )}
-            {typeof decision?.confidence === 'number' && <KV label="Confidence" value={`${Math.round(decision.confidence * 100)}%`} tabular />}
+            {task.estimated_effort_days != null && (
+              <KV label="Effort" value={`${task.estimated_effort_days} person-days`} />
+            )}
+            {typeof conf === 'number' && (
+              <KV label="Confidence" value={`${Math.round(conf * 100)}%`} tabular />
+            )}
+            {task.required_skills && task.required_skills.length > 0 && (
+              <KV label="Skills needed" value={task.required_skills.join(' · ')} />
+            )}
             {task.override_reason && <KV label="Reassign reason" value={task.override_reason} />}
           </div>
-          {(() => {
+
+          {/* Subtask why-rationale */}
+          {subSplit && (
+            <div className="mb-4">
+              <div className="eyebrow mb-2">Why this split</div>
+              <ul className="space-y-1.5">
+                {subSplit.map((row, i) => (
+                  <li key={i} className="text-[12px] text-ink-muted leading-relaxed">
+                    <span className="font-mono text-ink-quiet mr-2">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="text-ink">{row.suggested_owner ?? '—'}</span>
+                    {row.why && (
+                      <>
+                        <span className="text-ink-quiet"> · </span>
+                        {row.why}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Legacy v1 fallback: top1 + decomposition */}
+          {!subSplit && (() => {
             const rows =
               decision?.decomposition && decision.decomposition.length > 0
                 ? decision.decomposition.map((s) => ({ assignee: s.assignee, subtask: s.subtask }))
@@ -333,8 +476,8 @@ function TaskRow({
                   : [];
             if (rows.length === 0) return null;
             return (
-              <div>
-                <div className="eyebrow mb-1.5">Simulated split</div>
+              <div className="mb-4">
+                <div className="eyebrow mb-2">Predicted owner</div>
                 <ul className="space-y-1">
                   {rows.map((r, i) => (
                     <li key={i} className="text-[13px] text-ink-soft flex gap-2">
@@ -351,11 +494,16 @@ function TaskRow({
               </div>
             );
           })()}
-          {simId && (
-            <a href={`/sim/${simId}`} className="text-[12px] link-coral mt-3 inline-flex items-center gap-0.5">
-              Open simulation (rationale and risks) <ChevronRight size={11} />
-            </a>
-          )}
+          <div className="flex items-center gap-4 mt-3">
+            <Link href={`/predict/${encodeURIComponent(task.id)}`} className="text-[12px] link-coral inline-flex items-center gap-1">
+              <FlaskConical size={12} /> Open full simulation trace <ChevronRight size={11} />
+            </Link>
+            {simId && (
+              <a href={`/sim/${simId}`} className="text-[12px] link-coral inline-flex items-center gap-0.5">
+                v1 sim <ChevronRight size={11} />
+              </a>
+            )}
+          </div>
         </div>
       )}
     </div>

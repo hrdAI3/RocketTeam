@@ -84,7 +84,7 @@ export function MeetingViewer({ file, title, date, onClose }: MeetingViewerProps
             <div className="text-body text-rust">Failed to load: {error}</div>
           )}
           {content && (
-            <pre className="font-serif text-[14.5px] leading-relaxed text-ink whitespace-pre-wrap break-words">
+            <pre className="font-serif text-[13.5px] leading-relaxed text-ink whitespace-pre-wrap break-words">
               {content}
             </pre>
           )}

@@ -73,15 +73,11 @@ export function AgentCard({ profile }: AgentCardProps) {
               </span>
             )}
           </div>
-          <p className="text-[12px] text-ink-quiet leading-snug">
-            {profile.role}
-            <span className="text-ink-ghost"> · {profile.dept}</span>
-          </p>
         </div>
       </header>
 
       {profile.bio && !isStub && (
-        <p className="quote-soft text-[14px] mb-4">{profile.bio}</p>
+        <p className="quote-soft text-[13px] mb-4">{profile.bio}</p>
       )}
 
       {!isStub && activeTasks.length > 0 && (
@@ -134,7 +130,7 @@ export function AgentCard({ profile }: AgentCardProps) {
             {profile._meta?.evolution_count ?? 0} profile update{(profile._meta?.evolution_count ?? 0) === 1 ? '' : 's'} · {ago(profile._meta?.bootstrapped_at)}
           </span>
           <Link
-            href={`/agents/${encodeURIComponent(profile.name)}`}
+            href={`/team/${encodeURIComponent(profile.name)}`}
             className="text-[11px] font-medium text-coral hover:text-coral-deep transition-colors"
           >
             View details →

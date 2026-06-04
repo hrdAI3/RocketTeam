@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted Source Serif 4. We can't use next/font/google because Google
+   Fonts is blocked in CN — Next would silently fetch nothing at build time
+   and ship empty @font-face entries, causing the Bodoni-style fallback bug.
+   Binaries fetched once from jsdelivr (Fastly edge reaches CN). */
+@font-face {
+  font-family: 'Source Serif 4';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/source-serif-4-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Source Serif 4';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/source-serif-4-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Source Serif 4';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/source-serif-4-600.woff2') format('woff2');
+}
+
 @layer base {
   :root {
     color-scheme: light;
@@ -76,15 +102,16 @@
       z-index: 9999;
       padding: 24px;
       text-align: center;
-      font-family: var(--font-source-serif), serif;
+      font-family: "Source Serif 4", Cambria, "Iowan Old Style", Georgia, "DejaVu Serif", serif;
     }
   }
 }
 
 @layer components {
-  /* Editorial display title — serif, generous leading, tight tracking */
+  /* Calibrated against rocket-team-demo.vercel.app (CDP-measured):
+     h1 = 36px / 42 leading, eyebrow = 9.5px / 14.25 leading. Match exactly. */
   .display-title {
-    font-family: var(--font-source-serif), 'Songti SC', Georgia, serif;
+    font-family: "Source Serif 4", Cambria, "Iowan Old Style", Georgia, "DejaVu Serif", serif;
     font-weight: 500;
     font-size: 36px;
     line-height: 42px;
@@ -92,7 +119,7 @@
     color: #1F1F1C;
   }
   .hero-title {
-    font-family: var(--font-source-serif), 'Songti SC', Georgia, serif;
+    font-family: "Source Serif 4", Cambria, "Iowan Old Style", Georgia, "DejaVu Serif", serif;
     font-weight: 500;
     font-size: 48px;
     line-height: 54px;
@@ -101,8 +128,8 @@
   }
   .eyebrow {
     font-family: var(--font-geist-mono), monospace;
-    font-size: 11px;
-    line-height: 16px;
+    font-size: 9.5px;
+    line-height: 14.25px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -120,7 +147,7 @@
   }
   /* Soft quote — replaces italic for CJK pull-quotes */
   .quote-soft {
-    font-family: var(--font-source-serif), 'Songti SC', Georgia, serif;
+    font-family: "Source Serif 4", Cambria, "Iowan Old Style", Georgia, "DejaVu Serif", serif;
     font-weight: 400;
     color: #5A5A57;
     line-height: 1.6;
@@ -133,7 +160,7 @@
     color: #FFFFFF;
     padding: 7px 14px;
     border-radius: 8px;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 500;
     transition: background 120ms ease;
     border: none;
@@ -147,7 +174,7 @@
     border: 1px solid #DBD5C3;
     padding: 6px 13px;
     border-radius: 8px;
-    font-size: 13.5px;
+    font-size: 14.5px;
     font-weight: 500;
     transition: background 120ms ease;
     cursor: pointer;
@@ -167,4 +194,17 @@
     color: #2A2A26;
     line-height: 1.65;
   }
+}
+
+/* ── Interaction effects (ported from Rocket Team design) ── */
+/* Hover lift — attention rows, cards. Subtle raise + soft shadow on hover. */
+.lift {
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+.lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 12px rgba(31, 31, 28, 0.06);
+}
+.lift:active {
+  transform: translateY(0);
 }

@@ -250,7 +250,7 @@ export function MultiEvolutionPreview({
                 >
                   <Avatar name={d.agent_name} dept={deptMap[d.agent_name]} size="sm" />
                   <div className="flex-1 min-w-0">
-                    <div className="font-serif text-[15px] text-ink leading-tight">
+                    <div className="font-serif text-[13px] text-ink leading-tight">
                       {d.agent_name}
                     </div>
                     <div className="text-[11px] text-ink-quiet leading-tight mt-0.5">

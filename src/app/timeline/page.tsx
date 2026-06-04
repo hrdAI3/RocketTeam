@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Activity, RefreshCw } from 'lucide-react';
+import { Activity, ArrowLeft, RefreshCw } from 'lucide-react';
 import type { TimelineEvent } from '@/types';
 
 // System log — second-level page. The /sources board only links here; the full
@@ -25,10 +25,17 @@ function fmtDateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  const HH = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${MONTHS[d.getMonth()]} ${d.getDate()} · ${HH}:${mm}`;
+  // Pin to Beijing (UTC+8) regardless of where the browser / server is.
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Shanghai',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(d);
+  const get = (t: string): string => parts.find((p) => p.type === t)?.value ?? '';
+  return `${get('month')} ${get('day')} · ${get('hour')}:${get('minute')}`;
 }
 
 export default function SystemLogPage() {
@@ -52,6 +59,12 @@ export default function SystemLogPage() {
 
   return (
     <div className="px-12 py-10 max-w-[1040px] mx-auto">
+      <Link
+        href="/sources"
+        className="inline-flex items-center gap-1.5 text-[12px] text-ink-quiet hover:text-ink-muted mb-3 transition-colors"
+      >
+        <ArrowLeft size={13} /> Back to Sources
+      </Link>
       <header className="flex items-end justify-between gap-4 mb-8">
         <div>
           <div className="eyebrow mb-2">

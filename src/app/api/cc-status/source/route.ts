@@ -1,5 +1,6 @@
 import { listUsers } from '@/extractors/cc_session';
-import { readSyncState, readAllEvents } from '@/lib/events';
+import { readSyncState, streamEvents } from '@/lib/events';
+import { memoTTL } from '@/lib/ttl_cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,39 +9,39 @@ export const dynamic = 'force-dynamic';
 // Tells the leader: is the collector reachable, how many users it knows about,
 // how many CC events we've ingested, and when we last synced each user.
 export async function GET(): Promise<Response> {
-  const base = process.env.CC_COLLECTOR_BASE ?? 'http://192.168.22.88:8933';
-  let reachable = false;
-  let users: string[] = [];
-  let collectorError: string | undefined;
-  try {
-    users = await listUsers();
-    reachable = true;
-  } catch (err) {
-    collectorError = (err as Error).message;
-  }
+  const data = await memoTTL('cc-source', 90_000, async () => {
+    const base = process.env.CC_COLLECTOR_BASE ?? 'http://192.168.22.88:8933';
+    let reachable = false;
+    let users: string[] = [];
+    let collectorError: string | undefined;
+    try {
+      users = await listUsers();
+      reachable = true;
+    } catch (err) {
+      collectorError = (err as Error).message;
+    }
 
-  const syncState = (await readSyncState<{ users: Record<string, { lastSyncedMtime?: string }> }>(
-    'cc_session'
-  )) ?? { users: {} };
+    const syncState = (await readSyncState<{ users: Record<string, { lastSyncedMtime?: string }> }>(
+      'cc_session'
+    )) ?? { users: {} };
 
-  // Count cc_session events ingested.
-  const events = await readAllEvents();
-  let ccEventCount = 0;
-  const agentsWithData = new Set<string>();
-  for (const e of events) {
-    if (e.source === 'cc_session') {
+    // Count cc_session events ingested. Streams the file (bounded memory) and
+    // accumulates a counter + agents-with-data set; previously this was a
+    // full-file readAllEvents() that materialized 500MB+ in memory just to
+    // bump two counters.
+    let ccEventCount = 0;
+    const agentsWithData = new Set<string>();
+    await streamEvents({ source: 'cc_session' }, (e) => {
       ccEventCount++;
       if (e.subject.kind === 'agent') agentsWithData.add(e.subject.ref);
-    }
-  }
+    });
 
-  const perUser = users.map((email) => ({
-    email,
-    lastSyncedMtime: syncState.users[email]?.lastSyncedMtime ?? null
-  }));
+    const perUser = users.map((email) => ({
+      email,
+      lastSyncedMtime: syncState.users[email]?.lastSyncedMtime ?? null
+    }));
 
-  return new Response(
-    JSON.stringify({
+    return {
       base,
       reachable,
       collectorError,
@@ -48,7 +49,10 @@ export async function GET(): Promise<Response> {
       perUser,
       ccEventCount,
       agentsWithData: agentsWithData.size
-    }),
-    { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
-  );
+    };
+  });
+
+  return new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json; charset=utf-8' }
+  });
 }

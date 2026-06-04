@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Github, RefreshCw, Slack, NotebookText, ScrollText, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Github, RefreshCw, Slack, NotebookText, ScrollText, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { cn } from '../../components/utils';
 
 // Sources — the four feeds that power the status board and the anomaly engine.
@@ -43,12 +43,25 @@ function ageStr(iso: string | null | undefined): string {
   return `${Math.round(min / 60 / 24)}d ago`;
 }
 
+interface IdentityMaps {
+  email: Array<[string, string]>;
+  github: Array<[string, string]>;
+  slack: Array<[string, string]>;
+}
+interface EventStats {
+  total: number;
+  by_source: Record<string, number>;
+  latest_ts: string | null;
+}
+
 export default function SourcesPage() {
   const [cc, setCc] = useState<CcSourceStatus | null>(null);
   const [slack, setSlack] = useState<SlackStatus | null>(null);
   const [github, setGithub] = useState<GithubStatus | null>(null);
   const [meetingCount, setMeetingCount] = useState<number | null>(null);
   const [eventCount, setEventCount] = useState<number | null>(null);
+  const [identity, setIdentity] = useState<IdentityMaps | null>(null);
+  const [events, setEvents] = useState<EventStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,23 +70,33 @@ export default function SourcesPage() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const [ccRes, slackRes, ghRes, mRes, tlRes] = await Promise.all([
+    const [ccRes, slackRes, ghRes, mRes, tlRes, ctxRes] = await Promise.all([
       fetch('/api/cc-status/source', { cache: 'no-store' }).catch(() => null),
       fetch('/api/slack/status', { cache: 'no-store' }).catch(() => null),
       fetch('/api/github/status', { cache: 'no-store' }).catch(() => null),
       fetch('/api/meetings', { cache: 'no-store' }).catch(() => null),
-      fetch('/api/timeline?limit=200', { cache: 'no-store' }).catch(() => null)
+      fetch('/api/timeline?limit=200', { cache: 'no-store' }).catch(() => null),
+      fetch('/api/identity-events', { cache: 'no-store' }).catch(() => null)
     ]);
     if (ccRes && ccRes.ok) setCc((await ccRes.json()) as CcSourceStatus);
     if (slackRes && slackRes.ok) setSlack((await slackRes.json()) as SlackStatus);
     if (ghRes && ghRes.ok) setGithub((await ghRes.json()) as GithubStatus);
     if (mRes && mRes.ok) setMeetingCount(((await mRes.json()) as { meetings: unknown[] }).meetings.length);
     if (tlRes && tlRes.ok) setEventCount(((await tlRes.json()) as { events: unknown[] }).events.length);
+    if (ctxRes && ctxRes.ok) {
+      const ctx = (await ctxRes.json()) as { identity?: IdentityMaps; events?: EventStats };
+      if (ctx.identity) setIdentity(ctx.identity);
+      if (ctx.events) setEvents(ctx.events);
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => {
     void refresh();
+    // Poll every 30s so the "synced N min ago" label stays honest as the
+    // server-side monitor loop ticks in the background.
+    const id = setInterval(() => void refresh(), 30_000);
+    return () => clearInterval(id);
   }, [refresh]);
 
   return (
@@ -88,22 +111,22 @@ export default function SourcesPage() {
         </button>
       </header>
 
-      {/* Claude Code Sessions — primary source */}
-      <section className="mb-8">
-        <div className="rounded-xl border border-rule bg-paper-card p-6">
-          <div className="flex items-baseline justify-between gap-4">
+      {/* Claude Code Sessions — primary source, hero treatment */}
+      <section className="mb-7">
+        <div className="rounded-[14px] border border-rule bg-paper-card px-7 py-6 lift">
+          <div className="flex items-baseline justify-between gap-4 mb-1">
             <div className="flex items-baseline gap-3 min-w-0">
-              <h2 className="font-serif text-[19px] text-ink leading-tight">Claude Code Sessions</h2>
+              <h2 className="font-serif text-[22px] text-ink leading-tight tracking-[-0.012em]">Claude Code Sessions</h2>
               <ConnBadge connected={cc?.reachable} loading={!cc} />
             </div>
             {cc && <code className="font-mono text-[11px] text-ink-quiet shrink-0 hidden md:block">{cc.base}</code>}
           </div>
-          <p className="text-[13px] text-ink-muted leading-relaxed mt-2.5">
+          <p className="text-[13px] text-ink-muted leading-relaxed mt-2.5 mb-[18px] max-w-[720px]">
             Each member&apos;s local Claude Code session log (model, tokens, tool calls, stuck signals, cwd) uploads to the collector. The system pulls and normalizes them into events, polling the collector&apos;s live status endpoint (context usage, session health, quota windows, session cost). Anomalies land in &quot;Needs your attention.&quot;
           </p>
           {cc && (
             <>
-              <div className="mt-4 flex flex-wrap items-baseline gap-x-8 gap-y-2 text-[13px]">
+              <div className="flex flex-wrap items-baseline gap-x-7 gap-y-2 mb-3.5">
                 <InlineStat n={cc.knownUsers} label="collector users" />
                 <InlineStat
                   n={cc.agentsWithData}
@@ -112,7 +135,7 @@ export default function SourcesPage() {
                 />
                 <InlineStat n={cc.ccEventCount} label="events ingested" tabular />
               </div>
-              <p className="mt-3 text-[11.5px] text-ink-quiet">
+              <p className="text-[11.5px] text-ink-quiet">
                 {cc.ccEventCount > 0 ? (
                   <>Run <code className="font-mono text-[11px] px-1.5 py-0.5 bg-paper-subtle rounded">bun run sync</code> to pull the latest sessions</>
                 ) : (
@@ -125,15 +148,14 @@ export default function SourcesPage() {
                 </div>
               )}
               {cc.perUser.length > 0 && (
-                <details className="mt-3 group">
-                  <summary className="cursor-pointer text-[12px] text-ink-quiet hover:text-ink-muted list-none [&::-webkit-details-marker]:hidden">
+                <details className="mt-4 group">
+                  <summary className="cursor-pointer text-[12px] text-ink-muted hover:text-ink list-none [&::-webkit-details-marker]:hidden inline-flex items-center gap-1">
                     Synced users · {cc.perUser.length}
-                    <span className="group-open:hidden"> (expand)</span>
-                    <span className="hidden group-open:inline"> (collapse)</span>
+                    <ChevronDown size={12} className="transition-transform duration-150 group-open:rotate-180" />
                   </summary>
-                  <div className="mt-2 grid grid-cols-1 lg:grid-cols-2 gap-1">
+                  <div className="mt-2.5 grid grid-cols-1 lg:grid-cols-2 gap-x-3.5 gap-y-1">
                     {cc.perUser.map((u) => (
-                      <div key={u.email} className="flex items-center justify-between text-[11.5px] px-2 py-1 rounded bg-paper-subtle">
+                      <div key={u.email} className="flex items-center justify-between text-[11.5px] px-2.5 py-[5px] rounded-md bg-paper-subtle">
                         <span className="font-mono text-ink-soft truncate">{u.email}</span>
                         <span className="text-ink-quiet shrink-0 ml-2 tabular-nums">{u.lastSyncedMtime ? ageStr(u.lastSyncedMtime) : 'not synced'}</span>
                       </div>
@@ -163,7 +185,7 @@ export default function SourcesPage() {
             icon={<Github size={16} strokeWidth={1.8} className="text-ink" />}
             name="GitHub"
             connected={!!github?.connected}
-            desc="PR open / merge, review wait, commits, CI failures"
+            desc="Map projects to repos, flag repos missing leader as collaborator"
             meta={github?.connected ? `${github.org_or_user ?? ''}${github.selected_repos ? ` · ${github.selected_repos.length} repo${github.selected_repos.length === 1 ? '' : 's'}` : ''} · synced ${ageStr(github.last_sync_at)}` : undefined}
           />
           <SourceRow
@@ -191,6 +213,97 @@ export default function SourcesPage() {
           />
         </div>
       </section>
+
+      {/* Identity coverage — external account → person maps. Belongs here
+          (data-plumbing), not on /team. */}
+      {identity && (
+        <section className="mt-10">
+          <div className="mb-4 pb-3 border-b border-rule flex items-baseline justify-between gap-4">
+            <h2 className="font-serif text-[20px] text-ink leading-snug">Identity coverage</h2>
+            <span className="text-[12px] text-ink-muted shrink-0">
+              {identity.email.length} emails · {identity.github.length} GitHub · {identity.slack.length} Slack mapped
+            </span>
+          </div>
+          <IdentityTable identity={identity} />
+        </section>
+      )}
+
+      {/* Event sources — counts by source on disk. */}
+      {events && (
+        <section className="mt-10">
+          <div className="mb-4 pb-3 border-b border-rule flex items-baseline justify-between gap-4">
+            <h2 className="font-serif text-[20px] text-ink leading-snug">Event sources</h2>
+            <span className="text-[12px] text-ink-muted shrink-0">
+              {events.latest_ts ? `latest ${events.latest_ts.slice(0, 19).replace('T', ' ')}` : 'no events'}
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            {Object.entries(events.by_source)
+              .sort((a, b) => b[1] - a[1])
+              .map(([src, n]) => (
+                <div key={src} className="rounded-lg border border-rule bg-paper-card px-4 py-3">
+                  <div className="eyebrow mb-1.5">{src}</div>
+                  <div className="font-serif text-[22px] text-ink tabular-nums leading-none">
+                    {n.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+          </div>
+          <div className="text-[11px] text-ink-quiet mt-3 tabular-nums">
+            total {events.total.toLocaleString()} events on disk
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+// Person-keyed identity table: one row per member, three account columns
+// (Email / GitHub / Slack) side by side. Inverts the three name→id maps so a
+// name appears once, not three times.
+function IdentityTable({ identity }: { identity: IdentityMaps }) {
+  // name → { email, github, slack }
+  const byName = new Map<string, { email?: string; github?: string; slack?: string }>();
+  const fold = (rows: Array<[string, string]>, key: 'email' | 'github' | 'slack') => {
+    for (const [id, name] of rows) {
+      const e = byName.get(name) ?? {};
+      // keep first seen per channel (a person may have >1 email; show the first)
+      if (!e[key]) e[key] = id;
+      byName.set(name, e);
+    }
+  };
+  fold(identity.email, 'email');
+  fold(identity.github, 'github');
+  fold(identity.slack, 'slack');
+  const rows = [...byName.entries()].sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN'));
+
+  const Cell = ({ v }: { v?: string }) =>
+    v ? (
+      <code className="font-mono text-[11.5px] text-ink-quiet truncate block" title={v}>
+        {v}
+      </code>
+    ) : (
+      <span className="text-[11px] text-ink-ghost">—</span>
+    );
+
+  return (
+    <div className="rounded-xl border border-rule bg-paper-card overflow-hidden">
+      <div className="grid grid-cols-[120px_1fr_1fr_1fr] gap-4 px-4 py-2.5 border-b border-rule bg-paper-subtle/50">
+        <div className="eyebrow">Member</div>
+        <div className="eyebrow">Email</div>
+        <div className="eyebrow">GitHub</div>
+        <div className="eyebrow">Slack</div>
+      </div>
+      <div className="divide-y divide-rule-soft">
+        {rows.map(([name, acc]) => (
+          <div key={name} className="grid grid-cols-[120px_1fr_1fr_1fr] gap-4 px-4 py-2 items-baseline">
+            <span className="font-serif text-[13px] text-ink truncate">{name}</span>
+            <Cell v={acc.email} />
+            <Cell v={acc.github} />
+            <Cell v={acc.slack} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -208,7 +321,7 @@ function ConnBadge({ connected, loading }: { connected?: boolean; loading?: bool
 function InlineStat({ n, label, hint, tabular }: { n: number; label: string; hint?: string; tabular?: boolean }) {
   return (
     <span className="inline-flex items-baseline gap-1.5">
-      <span className={cn('font-serif text-[18px] text-ink leading-none', tabular && 'tabular-nums')}>{n}</span>
+      <span className={cn('font-serif text-[19px] font-medium text-ink leading-none', tabular && 'tabular-nums')}>{n.toLocaleString()}</span>
       <span className="text-[11.5px] text-ink-quiet">{label}{hint ? <span className="text-ink-ghost"> · {hint}</span> : null}</span>
     </span>
   );
@@ -232,10 +345,10 @@ function SourceRow({
   meta?: string;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-3 px-5 py-3.5 bg-paper-card hover:bg-paper-subtle transition-colors">
-      {icon && <span className="shrink-0 w-4 flex justify-center">{icon}</span>}
-      <span className="font-serif text-[15px] text-ink shrink-0 w-24 truncate">{name}</span>
-      <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] shrink-0 w-[100px] justify-center whitespace-nowrap', connected ? 'bg-forest/10 text-forest' : 'bg-paper-subtle text-ink-quiet border border-rule')}>
+    <Link href={href} className="flex items-center gap-3.5 px-5 py-3.5 bg-paper-card hover:bg-paper-subtle transition-colors">
+      {icon && <span className="shrink-0 w-[22px] flex justify-center">{icon}</span>}
+      <span className="font-serif text-[14px] text-ink shrink-0 w-24 truncate">{name}</span>
+      <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] shrink-0 min-w-[110px] justify-center whitespace-nowrap', connected ? 'bg-forest/10 text-forest' : 'bg-paper-subtle text-ink-quiet border border-rule')}>
         <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', connected ? 'bg-forest' : 'bg-rule-strong')} />
         {connectedLabel ?? (connected ? 'Connected' : 'Not connected')}
       </span>

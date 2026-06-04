@@ -14,6 +14,8 @@ export async function GET(): Promise<Response> {
         name: r.name,
         full_name: r.full_name,
         private: r.private,
+        fork: r.fork,
+        archived: r.archived,
         description: r.description,
         pushed_at: r.pushed_at,
         open_issues_count: r.open_issues_count

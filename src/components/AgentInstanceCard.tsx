@@ -25,14 +25,14 @@ export function AgentInstanceCard({ profile, variant = 'card' }: Props) {
   if (variant === 'row') {
     return (
       <Link
-        href={`/agents/${encodeURIComponent(profile.name)}`}
+        href={`/team/${encodeURIComponent(profile.name)}`}
         className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-ink/95 hover:bg-ink transition-colors"
       >
         <div className="w-7 h-7 rounded-lg bg-coral/20 border border-coral/40 flex items-center justify-center shrink-0">
           <Cpu size={13} className="text-coral" strokeWidth={2.4} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-serif text-[14px] text-paper leading-tight truncate">Claude Code</div>
+          <div className="font-serif text-[13px] text-paper leading-tight truncate">Claude Code</div>
           {current ? (
             <div className="text-[11.5px] text-paper-subtle leading-tight mt-0.5 truncate">
               <Activity size={9} className="inline -mt-0.5 mr-1 text-coral" />
@@ -56,7 +56,7 @@ export function AgentInstanceCard({ profile, variant = 'card' }: Props) {
 
   return (
     <Link
-      href={`/agents/${encodeURIComponent(profile.name)}`}
+      href={`/team/${encodeURIComponent(profile.name)}`}
       className="block group rounded-xl bg-ink p-4 border border-ink/80 hover:border-coral/60 transition-all hover:shadow-modal"
     >
       <header className="flex items-start gap-3 mb-3">
@@ -64,7 +64,7 @@ export function AgentInstanceCard({ profile, variant = 'card' }: Props) {
           <Cpu size={18} className="text-coral" strokeWidth={2} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-serif text-[15.5px] text-paper leading-tight">Claude Code</div>
+          <div className="font-serif text-[13.5px] text-paper leading-tight">Claude Code</div>
           <div className="text-[11px] font-mono text-paper-subtle leading-tight mt-0.5">
             Anthropic · claude-code
           </div>

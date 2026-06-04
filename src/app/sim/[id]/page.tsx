@@ -53,8 +53,11 @@ export default function SimReplayPage({ params }: { params: { id: string } }) {
         <div className="card-surface p-6 max-w-md">
           <div className="font-serif text-title text-rust mb-2">Simulation record not found</div>
           <p className="text-body text-ink-muted">{error}</p>
-          <Link href="/tasks" className="link-coral text-caption mt-3 inline-block">
-            ← Back to tasks
+          <Link
+            href="/tasks"
+            className="inline-flex items-center gap-1.5 text-[12px] text-ink-quiet hover:text-ink-muted mt-3 transition-colors"
+          >
+            <ArrowLeft size={13} /> Back to Dispatch
           </Link>
         </div>
       </div>
@@ -69,12 +72,12 @@ export default function SimReplayPage({ params }: { params: { id: string } }) {
       <div className="mb-8">
         <Link
           href="/tasks"
-          className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
+          className="inline-flex items-center gap-1.5 text-[12px] text-ink-quiet hover:text-ink-muted mb-3 transition-colors"
         >
-          <ArrowLeft size={12} /> Tasks
+          <ArrowLeft size={13} /> Back to Dispatch
         </Link>
         <div className="eyebrow mb-1">
-          Rocket Team / Simulation replay · <span className="font-mono">{state.sim_id}</span>
+          Rocket Team / <Link href="/tasks" className="hover:text-ink-muted transition-colors">Dispatch</Link> / Simulation replay · <span className="font-mono">{state.sim_id}</span>
         </div>
         <h1 className="display-title">{state.config.task_description}</h1>
         <div className="flex gap-4 mt-3 text-caption text-ink-muted">
@@ -206,7 +209,7 @@ function DecisionSummaryCard({
         <div className="grid grid-cols-2 gap-3 mb-5">
           {decomp.map((s, i) => (
             <div key={i} className="rounded-lg bg-paper-card border border-rule p-3.5">
-              <div className="font-serif text-[15px] text-ink leading-snug mb-2">{s.subtask}</div>
+              <div className="font-serif text-[13px] text-ink leading-snug mb-2">{s.subtask}</div>
               <div className="flex items-center gap-2 mb-2">
                 <Avatar name={s.assignee} dept={deptMap[s.assignee]} size="sm" />
                 <div>
@@ -338,7 +341,7 @@ function ActionCard({ action, deptMap }: { action: AgentAction; deptMap: DeptMap
       <header className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <Avatar name={action.agent_name} dept={dept} size="sm" />
-          <span className="font-serif text-[15px] text-ink truncate">{action.agent_name}</span>
+          <span className="font-serif text-[13px] text-ink truncate">{action.agent_name}</span>
         </div>
         <span className={`text-[11px] px-1.5 py-0.5 rounded ${tag.text} ${tag.bg} shrink-0`}>
           {ACTION_LABEL[action.action_type] ?? action.action_type}

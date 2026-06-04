@@ -13,6 +13,7 @@ import {
   Lock
 } from 'lucide-react';
 import { useToast } from '../../../components/Toast';
+import { fmtBeijing } from '../../../components/utils';
 
 interface Repo {
   id: number;
@@ -20,6 +21,8 @@ interface Repo {
   name: string;
   full_name: string;
   private: boolean;
+  fork: boolean;
+  archived: boolean;
   description: string | null;
   pushed_at: string;
   open_issues_count: number;
@@ -32,6 +35,8 @@ interface Status {
   connected_at?: string;
   last_sync_at?: string;
   selected_repos?: Array<{ owner: string; name: string }>;
+  auto_sync_enabled?: boolean;
+  auto_sync_interval_min?: number;
 }
 
 export default function GithubOnboardPage() {
@@ -45,6 +50,8 @@ export default function GithubOnboardPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [syncing, setSyncing] = useState(false);
   const [filter, setFilter] = useState('');
+  const [hideForks, setHideForks] = useState(true);
+  const [nextSyncIn, setNextSyncIn] = useState<number | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -60,6 +67,19 @@ export default function GithubOnboardPage() {
         setStatusLoading(false);
       }
     })();
+    // Light polling so "Last synced …" stays current with the server-side
+    // monitor loop (status only — don't re-pull the repo list every 30s).
+    const id = setInterval(() => {
+      void (async () => {
+        try {
+          const res = await fetch('/api/github/status', { cache: 'no-store' });
+          if (res.ok) setStatus((await res.json()) as Status);
+        } catch {
+          /* transient */
+        }
+      })();
+    }, 30_000);
+    return () => clearInterval(id);
   }, []);
 
   const loadRepos = async () => {
@@ -142,13 +162,106 @@ export default function GithubOnboardPage() {
     }
   };
 
+  // Auto-sync — browser-driven polling. Only runs while this page is open
+  // (the server-side monitor loop in src/services/monitor_loop.ts is the
+  // always-on path; this is the "stops when page closes" toggle the leader
+  // sees here, identical to Slack's pattern).
+  const toggleAutoSync = async (enabled: boolean): Promise<void> => {
+    if (!status?.connected) return;
+    try {
+      const res = await fetch('/api/github/auto-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled, interval_min: status.auto_sync_interval_min ?? 15 })
+      });
+      if (!res.ok) {
+        toast.push('Failed to update auto-sync', 'error');
+        return;
+      }
+      toast.push(enabled ? 'Auto-sync enabled' : 'Auto-sync disabled', 'success');
+      const sRes = await fetch('/api/github/status', { cache: 'no-store' });
+      setStatus((await sRes.json()) as Status);
+    } catch (err) {
+      toast.push((err as Error).message, 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (!status?.auto_sync_enabled || !status.connected) {
+      setNextSyncIn(null);
+      return;
+    }
+    const intervalMin = status.auto_sync_interval_min ?? 15;
+    const intervalMs = intervalMin * 60 * 1000;
+    let cancelled = false;
+    let nextTickAt = Date.now() + intervalMs;
+    setNextSyncIn(Math.ceil(intervalMs / 1000));
+    const countdown = setInterval(() => {
+      if (cancelled) return;
+      setNextSyncIn(Math.max(0, Math.ceil((nextTickAt - Date.now()) / 1000)));
+    }, 1000);
+    const tick = setInterval(async () => {
+      if (cancelled) return;
+      try {
+        const picks =
+          repos?.filter((r) => selected.has(`${r.owner}/${r.name}`)).map((r) => ({
+            owner: r.owner,
+            name: r.name
+          })) ?? [];
+        if (picks.length === 0) {
+          nextTickAt = Date.now() + intervalMs;
+          return;
+        }
+        const res = await fetch('/api/github/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repos: picks, days_back: 2 })
+        });
+        if (res.ok) {
+          const d = (await res.json()) as { written?: Array<{ prs: number }> };
+          const total = (d.written ?? []).reduce((a, w) => a + w.prs, 0);
+          if (total > 0) toast.push(`Auto-sync · ${total} new PR${total === 1 ? '' : 's'}`, 'success');
+          const sRes = await fetch('/api/github/status', { cache: 'no-store' });
+          setStatus((await sRes.json()) as Status);
+        }
+      } catch {
+        /* transient failure — next tick will retry */
+      }
+      nextTickAt = Date.now() + intervalMs;
+    }, intervalMs);
+    return () => {
+      cancelled = true;
+      clearInterval(countdown);
+      clearInterval(tick);
+    };
+  }, [
+    status?.auto_sync_enabled,
+    status?.auto_sync_interval_min,
+    status?.connected,
+    repos,
+    selected,
+    toast
+  ]);
+
   const filteredRepos =
-    repos?.filter(
-      (r) =>
-        !filter.trim() ||
-        r.full_name.toLowerCase().includes(filter.toLowerCase()) ||
-        (r.description ?? '').toLowerCase().includes(filter.toLowerCase())
-    ) ?? null;
+    repos?.filter((r) => {
+      if (hideForks && r.fork) return false;
+      if (!filter.trim()) return true;
+      const q = filter.toLowerCase();
+      return (
+        r.full_name.toLowerCase().includes(q) ||
+        (r.description ?? '').toLowerCase().includes(q)
+      );
+    }) ?? null;
+
+  // Selects every repo currently visible (respects "Hide forks" + search).
+  const selectAllVisible = (): void => {
+    if (!filteredRepos) return;
+    const next = new Set<string>();
+    for (const r of filteredRepos) next.add(`${r.owner}/${r.name}`);
+    setSelected(next);
+  };
+  const clearAll = (): void => setSelected(new Set());
 
   if (statusLoading) {
     return (
@@ -162,9 +275,9 @@ export default function GithubOnboardPage() {
     <div className="px-12 py-10 max-w-[1100px] mx-auto">
       <Link
         href="/sources"
-        className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
+        className="inline-flex items-center gap-1.5 text-[12px] text-ink-quiet hover:text-ink-muted mb-3 transition-colors"
       >
-        <ArrowLeft size={12} /> Sources
+        <ArrowLeft size={13} /> Back to Sources
       </Link>
 
       <header className="flex items-start gap-4 mb-8">
@@ -172,12 +285,14 @@ export default function GithubOnboardPage() {
           <Github size={24} strokeWidth={1.8} className="text-ink" />
         </div>
         <div className="flex-1">
-          <div className="eyebrow mb-1">Rocket Team / Sources / GitHub</div>
+          <div className="eyebrow mb-1">
+            Rocket Team / <Link href="/sources" className="hover:text-ink-muted transition-colors">Sources</Link> / GitHub
+          </div>
           <h1 className="display-title">{status?.connected ? `Connected as @${status.login}` : 'Connect GitHub'}</h1>
-          <p className="prose-warm text-body text-ink-muted mt-2 max-w-2xl">
+          <p className="text-body text-ink-muted mt-2">
             {status?.connected
-              ? 'The system pulls recent PRs, issues, and code reviews from your selected repos as profile evidence.'
-              : 'Create a PAT (Personal Access Token) on GitHub and paste it here. Reads PRs, issues, and code reviews.'}
+              ? 'Maps projects to repos. Flags missing collaborators.'
+              : 'Read-only access. Maps projects to repos. Flags missing collaborators.'}
           </p>
         </div>
         {status?.connected && (
@@ -189,21 +304,16 @@ export default function GithubOnboardPage() {
 
       {!status?.connected ? (
         <section className="card-surface p-5">
-          <header className="mb-3">
+          <header className="mb-3 flex items-baseline justify-between gap-3">
             <h2 className="font-serif text-[17px] text-ink leading-tight">Paste your PAT</h2>
-            <p className="text-caption text-ink-quiet mt-0.5">
-              On GitHub: Settings → Developer settings → Personal access tokens. Minimum scopes:
-              <span className="font-mono mx-1">repo</span> (public + private) +
-              <span className="font-mono mx-1">read:org</span> (org info).
-              <a
-                href="https://github.com/settings/tokens/new?scopes=repo,read:org&description=Rocket%20Team"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="link-coral inline-flex items-center gap-0.5 ml-1"
-              >
-                Open creation page <ExternalLink size={10} />
-              </a>
-            </p>
+            <a
+              href="https://github.com/settings/personal-access-tokens/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="link-coral text-caption inline-flex items-center gap-0.5 shrink-0"
+            >
+              Generate on GitHub <ExternalLink size={10} />
+            </a>
           </header>
           <div className="flex gap-2">
             <input
@@ -227,6 +337,9 @@ export default function GithubOnboardPage() {
               )}
             </button>
           </div>
+          <p className="text-[11.5px] text-ink-quiet mt-3">
+            Use the leader account · <span className="font-mono">Metadata: Read</span> · revokable anytime
+          </p>
         </section>
       ) : (
         <section>
@@ -256,6 +369,37 @@ export default function GithubOnboardPage() {
 
           {repos && repos.length > 0 && (
             <>
+              {/* Quick selection + visibility toggles. "Select real projects"
+                  is the one-click setup for the common case: skip forks &
+                  archived, keep everything else. Filter toggles let the
+                  leader hide noise without losing the option to see it. */}
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={selectAllVisible}
+                    className="btn-ghost text-caption inline-flex items-center gap-1"
+                  >
+                    Select all projects
+                  </button>
+                  <button
+                    onClick={clearAll}
+                    className="text-caption text-ink-quiet hover:text-ink transition-colors px-2"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="flex items-center gap-3 text-[11.5px] text-ink-quiet">
+                  <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hideForks}
+                      onChange={(e) => setHideForks(e.target.checked)}
+                      className="accent-coral"
+                    />
+                    Hide forks
+                  </label>
+                </div>
+              </div>
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
@@ -292,7 +436,25 @@ export default function GithubOnboardPage() {
                         <Github size={13} className="text-ink-quiet mt-1" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="font-mono text-[13px] text-ink leading-tight">{r.full_name}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[13px] text-ink leading-tight">{r.full_name}</span>
+                          {r.fork && (
+                            <span
+                              title="This repo is a fork — typically a collected reference, not a real project"
+                              className="text-[9.5px] uppercase tracking-wide px-1.5 py-0.5 rounded font-mono bg-paper-subtle text-ink-quiet border border-rule"
+                            >
+                              fork
+                            </span>
+                          )}
+                          {r.private && (
+                            <span
+                              title="Private repo"
+                              className="text-[9.5px] uppercase tracking-wide px-1.5 py-0.5 rounded font-mono bg-paper-subtle text-ink-quiet border border-rule"
+                            >
+                              private
+                            </span>
+                          )}
+                        </div>
                         {r.description && (
                           <div className="text-[11.5px] text-ink-quiet leading-tight mt-0.5 truncate">
                             {r.description}
@@ -308,7 +470,7 @@ export default function GithubOnboardPage() {
               </div>
               <div className="flex items-center justify-between mt-3">
                 <span className="text-caption text-ink-quiet">
-                  {status.last_sync_at && `Last synced ${status.last_sync_at.slice(0, 16).replace('T', ' ')}`}
+                  {status.last_sync_at && `Last synced ${fmtBeijing(status.last_sync_at)}`}
                 </span>
                 <button
                   onClick={() => void sync()}
@@ -324,6 +486,29 @@ export default function GithubOnboardPage() {
                   )}
                 </button>
               </div>
+
+              {status.last_sync_at && (
+                <div className="flex items-center justify-between pb-2 pt-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(status.auto_sync_enabled)}
+                      onChange={(e) => void toggleAutoSync(e.target.checked)}
+                      className="accent-coral"
+                    />
+                    <span className="text-[13px] text-ink">
+                      Auto-sync every {status.auto_sync_interval_min ?? 15} min
+                    </span>
+                  </label>
+                  <span className="text-[11px] text-ink-quiet">
+                    {status.auto_sync_enabled
+                      ? nextSyncIn !== null
+                        ? `next in ${Math.ceil(nextSyncIn / 60)}m`
+                        : 'preparing…'
+                      : 'stops when page closes'}
+                  </span>
+                </div>
+              )}
             </>
           )}
         </section>

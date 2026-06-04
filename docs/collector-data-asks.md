@@ -1,109 +1,91 @@
-# 给 Collector (Matrix-Riven, :8933) 维护者的需求 / Issue List
+# Matrix-Riven (:8933) 数据增强 todo
 
-> 来源：`team/UX-PROJECT-FIRST.md` §9（项目维度 WIP 重构方案）
-> 日期：2026-05-14
-> 背景：team 前端要从「人为单位」改成「项目为单位」展示在做的工作。准确把工作线归到项目，需要一些 CC 侧数据。
-> **重要**：以下没有任何一条是 team 端 P1 的阻塞项——方案在零数据增强下也能跑（软聚类退化成平铺工作线列表）。这些是「让匹配更准」的增强，按优先级排。
-
----
-
-## 分类说明
-
-- **A 类**：数据已经在 collector 收到的 jsonl 里，team 端只需改自己的 extractor。**列在这里只是知会，不需要 collector 改代码**——除了 A-3 / A-6 需要你确认两个事实。
-- **B 类**：CC jsonl 里没有，需要 collector 侧改动（hook 脚本）。**这才是真正要你做的。**
-- **Q 类**：需要你回答的问题，不涉及改代码。
+> 你就是维护者,本文档直接是你的 todo list,不是给第三方的 issue。
+> 来源:`team/UX-PROJECT-FIRST.md` v10 §9。
+> 架构边界(v10 §0.7):Matrix-Riven 保持纯数据源,所有 LLM/多源融合/项目语义在 team app。本文档的请求**不破坏**这条边界——只是 hook 多抓两条信息附进现有 `CcStatusSnapshot`,Matrix-Riven 自身不解读这些新字段,只透传。
+> **重要**:没有一条是 team 端 S2 阻塞——零增强下方案走软聚类模式仍可发。
 
 ---
 
-## B-1 ⭐ 核心请求 — SessionStart hook 增加 git remote + repo root
+## 立即可做的(零成本 / 一行 env)
 
-**优先级**：P0（唯一高价值、需 collector 改动的项）
+### ✅ #1 — 开 `RIVEN_REALTIME_RAW_PROMPT=1`
 
-**现状**：CC 上传的 jsonl 每行带 `cwd` 和 `gitBranch`，但**不带 git remote URL，也不带 git 仓库根路径**。
+**现状**:`CcStatusSnapshot.raw_prompt` 字段已在,`bin-user-prompt-submit.cjs` hook 已抓首条 user prompt,但默认 `undefined`,需 env 开。
 
-**问题**：team 端只能用 `cwd` 最后一段路径猜项目。这在 monorepo 下会炸——例如 `D:\hrdai` 是一个 git 仓库，里面 `team/` `MiroFish/` `socialmind/` 是不同项目；`D:\hrdai\team\src` 和 `D:\hrdai\MiroFish\src` 都被猜成 `"src"`，撞车。
+**为什么开**:team app 的 LLM 归属吃这条 prompt 当 session 意图 context。**对无 cwd 的产品 / 运营项目尤其关键**——LLM 看到"帮我组织一篇关于 X 的文章",才能把这条工作线归到正确项目。
 
-**请求**：在 collector 的 SessionStart hook 脚本里加两条命令，结果附进上传的 session 元数据：
+**成本**:production 环境改一个 env。
 
-```bash
-git -C "$cwd" remote get-url origin      # → 例如 https://github.com/hrdai/team
-git -C "$cwd" rev-parse --show-toplevel  # → 例如 D:/hrdai
-```
-
-**解锁**：`github.com/hrdai/team` 是稳定唯一的项目标识。team 端匹配置信度从「启发式猜测 ~0.85」升到「精确标识 1.0」。monorepo 子目录用 repo_root + 路径前缀组合精确定位。
-
-**成本**：SessionStart hook 加两行；非 git 目录两条命令会失败，hook 需吞掉错误（输出空值即可，team 端能降级）。
+**注意隐私**:开 env = raw prompt 文本会发到 collector。已有 PII redactor(L1)过一遍,但 team app 也会看到。如组织里有"prompt 内容不离机"政策,这条**不要开**——团队要先讨论。
 
 ---
 
-## B-2 — machine_id ↔ 项目的稳定关联（可选）
+## 需你回答两个问题(看下源码就行,不改代码)
 
-**优先级**：P3（nice-to-have，不做也行）
+### Q-1 — `stop_hook_summary` 帧 payload 长啥样?
 
-**现状**：collector 已有 `machine_id`（见 `/api/cc-status` snapshot）。
+CC jsonl 里有 `type: 'system'`、`subtype: 'stop_hook_summary'` 的帧。问题:**帧 payload 里有没有模型自写的"这轮做了什么 / 下一步"总结文本?** 还是仅 turn 计数 / 耗时等元数据?
 
-**请求**：若 hook 能附带「本机常驻项目清单」更好；但 B-1 落地后其实已够用，B-2 可不做。
+- 有总结文本 → team app 零成本拿来当工作进展信号(`cc.recap` 事件)
+- 只有元数据 → team app 不浪费力气解析
 
----
+请贴一两个真实样本帧 / 直接说"只元数据,没文本"。
 
-## Q-1 — `stop_hook_summary` 帧的 payload 结构是什么？
+### Q-2 — collector hook 配置启用了 PostToolUse 吗?
 
-**类型**：Q（只需回答，不改代码）
+CC jsonl 有 `type:'attachment'` 帧带 `hookName`/`hookEvent`。问:**Matrix-Riven 部署用户机器的 Claude Code settings 里,PostToolUse hook 启用了吗?**
 
-CC jsonl 里有 `type: 'system'`、`subtype: 'stop_hook_summary'` 的帧。team 端想知道：**这个帧的 payload 里有没有模型自己写的「这轮做了什么 / 下一步」式的总结文本？** 还是只是 turn 计数 / 耗时之类的元数据？
-
-- 如果有总结文本 → team 端可以零成本拿来当工作进展信号。
-- 如果只有元数据 → team 端不浪费精力解析。
-
-请贴一两个真实样本帧。
+- 启用了 → team app 能拿每次工具调用退出码,做"重复失败 = 卡住"检测
+- 没启用 → 知道走不通就不依赖
 
 ---
 
-## Q-2 — collector 的 hook 配置里启用了 PostToolUse 吗？
+## 真要你写代码的(就这一条)
 
-**类型**：Q（只需回答）
+### ⭐ #B-1 — SessionStart hook 加 git remote + repo root,透传进 `CcStatusSnapshot`
 
-CC jsonl 里有 `type: 'attachment'` 帧，带 `hookName` / `hookEvent`。team 端想知道：**collector 部署的 hook 配置里，PostToolUse 这个 hook 事件被启用了吗？**
+**改两处**:
+1. `bin-session-start.cjs` SessionStart hook 脚本里,在现有抓 cwd / branch 之后加两条命令:
+   ```bash
+   git -C "$cwd" remote get-url origin       # → 例如 git@github.com:libz-renlab-ai/Matrix-Riven.git
+   git -C "$cwd" rev-parse --show-toplevel   # → 例如 D:/hrdai/Matrix-Riven
+   ```
+   非 git 目录两条命令会失败,hook 吞错输出空字符串即可(team app 端能降级)。
+2. `@matrix-riven/shared/cc-status/types.ts` 的 `CcStatusSnapshot` 加两个可选字段:
+   ```ts
+   /** `git remote get-url origin` 的输出,SessionStart hook 抓。非 git 目录则 undefined。 */
+   git_remote_url?: string;
+   /** `git rev-parse --show-toplevel` 的输出,SessionStart hook 抓。同上,非 git 则 undefined。 */
+   repo_root?: string;
+   ```
+   bump `CC_STATUS_SCHEMA_VERSION` 还是不 bump:这俩是 additive optional 字段,**不 bump**(schema 版本管的是非可加变更)。
 
-- 启用了 → team 端能拿到每次工具调用的退出码，做「重复失败 = 卡住」检测。
-- 没启用 → team 端知道这条路现在走不通，不去依赖它。
+**Matrix-Riven 自身不解读这俩字段,只透传**——符合 §0.7 数据源职责。
 
----
+**解锁什么**:
+- team app LLM 归属获得稳定项目身份 context(不是决定信号、是辅证):`github.com/libz-renlab-ai/Matrix-Riven` 是唯一标识,胜过 cwd 末段瞎猜
+- `repo_root` 让 monorepo 子目录定位准确(`D:\hrdai\team` vs `D:\hrdai\MiroFish` 不再都成 `src`)
 
-## Q-3 — `/api/cc-status/all`（富快照端点）什么时候 wire？
-
-**类型**：Q（只需回答）
-
-team 端代码（`live_cc.ts`）注释说 `/api/cc-status/all` 是 #350、「还没在 collector 侧 wire」。目前 team 端降级用 `/api/quota` per-user 兜底。
-
-问题：`/api/cc-status/all` 有排期吗？它 wire 之后 team 端的实时层（context %、工具数、quota 窗口）会完整很多。不急，只是想知道是否在计划内。
-
----
-
-## A 类 — 知会（collector 不需改代码，team 端改自己的 extractor）
-
-以下数据**已经在你收到的 jsonl 里**，team 端会自己扩 `cc_session.ts` extractor 解析。列出来只是让你知道 team 端会开始读这些字段，万一未来 jsonl 格式变动请知会一声：
-
-| # | 数据 | jsonl 位置 |
-|---|------|-----------|
-| A-1 | TodoWrite / Task 工具调用的 `input` | `assistant` 消息的 `tool_use` block |
-| A-2 | 每个 session 的首条 user prompt | 第一条 `type:'user'` 非 tool_result 消息 |
-| A-4 | worktree-state / permission-mode | 同名控制帧 |
-| A-5 | Edit/Write 的 `file_path` | `tool_use` block 的 `input.file_path` |
-
-（A-3 = Q-1，A-6 = Q-2，已上提到 Q 类。）
+**顺手的好处**(不强求做,做了就 free):Matrix-Riven 自己的 Overview tab Projects panel 现在用 `basename(cwd)` 会撞车——升到 `repo_root + basename(cwd)` 组合就修了。看你 collector 维护者的心情。
 
 ---
 
-## 优先级总结
+## 优先级 / 工作量
 
-| 项 | 类型 | 要你做什么 | 优先级 |
-|---|------|-----------|--------|
-| **B-1** | 改 hook | SessionStart 加 2 条 git 命令 | **P0** |
-| Q-1 | 回答 | 贴 stop_hook_summary 样本 | P1 |
-| Q-2 | 回答 | 确认 PostToolUse 是否启用 | P1 |
-| Q-3 | 回答 | `/api/cc-status/all` 排期 | P2 |
-| B-2 | 改 hook | machine_id↔项目（可不做） | P3 |
-| A-* | 知会 | 无需动作，格式变动时知会 | — |
+| # | 事 | 你做 | team app 端 | 出口 |
+|---|---|---|---|---|
+| **#1** | 开 raw_prompt env | 一行 env | 改 extractor 读这字段 | LLM 归属 context 升级,**S2 门 B `attributed_rate` 提升** |
+| **Q-1** | 看 stop_hook_summary payload | 贴样本/答 | 决定要不要做 `cc.recap` extractor | 若有文本,多一路工作进展信号 |
+| **Q-2** | 看 PostToolUse 配置 | 答 | 决定要不要做退出码 extractor | 若启用,"卡住"检测精度 |
+| **B-1** | SessionStart hook + schema 字段 | hook 两行 + types 两字段 | matcher 把这俩进 MatchContext | 项目身份精度从"猜"升"准" |
 
-**最小可行**：只做 B-1 + 回答 Q-1/Q-2，team 端的项目匹配就能从「猜」升级到「准」。
+**没有 S2 阻塞**——只要你愿意花 5 分钟开 #1 的 env,我们已经比"零数据增强"基准好一档。B-1 是想真正做对项目身份才做。
+
+---
+
+## 不在本文档要的(明确切割,符合 §0.7)
+
+- ❌ 把项目登记表 / LLM 提取塞进 Matrix-Riven —— 不要
+- ❌ Matrix-Riven 学会"什么是项目" —— 不要,语义在 team app
+- ❌ Matrix-Riven 的 Overview tab 改成消费 team app 的 `/api/workboard` —— 两边独立工具,互不依赖

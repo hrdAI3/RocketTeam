@@ -41,3 +41,23 @@ export function deptLabel(dept: string | undefined | null): string {
   if (!dept) return '';
   return DEPT_LABEL[dept] ?? dept;
 }
+
+// Render an ISO timestamp as `YYYY-MM-DD HH:mm` in Beijing time (UTC+8),
+// regardless of the server / browser locale. The whole team operates in
+// Beijing time; displaying raw UTC strings causes "is this stale?" confusion.
+export function fmtBeijing(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  // sv-SE renders as `YYYY-MM-DD HH:mm:ss` with timeZone honored. Slice off
+  // seconds for a tidy display.
+  return d.toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai', hour12: false }).slice(0, 16);
+}
+
+// Short `MM-DD HH:mm` Beijing time — for compact slots where the year is
+// already obvious from context (sync labels, timeline rows).
+export function fmtBeijingShort(iso: string | null | undefined): string {
+  const full = fmtBeijing(iso);
+  if (full === '—') return full;
+  return full.slice(5); // drop the YYYY- prefix
+}

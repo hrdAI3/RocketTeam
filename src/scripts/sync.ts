@@ -14,6 +14,8 @@ import { syncMeetings } from '../extractors/meeting';
 import { evaluateAll } from '../anomaly/engine';
 import { getAllStatus } from '../services/cc_status';
 import { refreshActiveWorkSummaries } from '../services/work_summary';
+import { runProjectSync } from '../services/project_sync';
+import { evolveAllProjectProfiles } from '../services/project_profile';
 
 interface CliOpts {
   only?: Set<string>;
@@ -76,6 +78,32 @@ async function main(): Promise<void> {
   }
   if (should('anomaly', opts)) {
     totals.anomaly = await evaluateAll();
+  }
+  // §3.1 / §3.2 — project registry maintenance. Runs extraction + resolver
+  // before the per-agent summaries so work_summary's projectId attribution
+  // can see freshly minted ids in the same sync pass.
+  if (should('projects', opts)) {
+    try {
+      const r = await runProjectSync();
+      totals.projects = {
+        proposals: r.proposals.length,
+        outcomes: r.outcomes.length,
+        registry: r.projects.length,
+        errors: r.errors
+      };
+    } catch (err) {
+      totals.projects = { error: (err as Error).message };
+    }
+  }
+  // §3.6 project profile — bootstrap newly-minted ids, evolve everything
+  // else. Heavy on LLM (one call per project), so gated behind its own
+  // --only=profiles knob; cron skips it by default.
+  if (should('profiles', opts)) {
+    try {
+      totals.profiles = await evolveAllProjectProfiles();
+    } catch (err) {
+      totals.profiles = { error: (err as Error).message };
+    }
   }
   // Warm the "在做什么" summaries for whoever's active/idle so the /status
   // roster shows fresh hints without paying for an LLM call on each poll.

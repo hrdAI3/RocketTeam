@@ -21,7 +21,8 @@
 
 import { runToday } from '../services/today';
 import { listOpenAnomalies } from '../anomaly/store';
-import { readAllEvents } from '../lib/events';
+import { streamEvents } from '../lib/events';
+import type { Event } from '../types/events';
 import {
   getRosterView,
   getOneStatus,
@@ -29,6 +30,9 @@ import {
   renderOneStatusMarkdown,
   askAboutAgentCC
 } from '../services/cc_status';
+import { getWorkboardView } from '../services/workboard';
+import { attributeAnomalyToProject } from '../services/anomaly_attribution';
+import { readProjects } from '../lib/projects';
 
 interface JsonRpcRequest {
   jsonrpc: '2.0';
@@ -96,6 +100,20 @@ const TOOLS = [
         question: { type: 'string', description: 'Free-text question about that agent\'s recent CC work.' }
       },
       required: ['agent', 'question']
+    }
+  },
+  {
+    name: 'team:workboard',
+    description:
+      'Render the project-axis workboard as markdown. Shows the leader-attention items first (anomalies + blocked projects) then the full project grid with thread counts and CC counts. Anonymous on the glance — drilling into a project goes via the web UI. Optional: pass `attentionOnly=true` to mirror the /status (first-level) view; default returns both attention list and full grid.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        attentionOnly: {
+          type: 'boolean',
+          description: 'When true, only the attention block (anomalies + blocked) is rendered, matching /status. Default false (returns the full workboard).'
+        }
+      }
     }
   }
 ];
@@ -194,6 +212,11 @@ async function callTool(params: Record<string, unknown>): Promise<unknown> {
       const answer = await askAboutAgentCC(agent, question);
       return { content: [{ type: 'text', text: answer }] };
     }
+    case 'team:workboard': {
+      const attentionOnly = args.attentionOnly === true;
+      const md = await renderWorkboardMarkdown({ attentionOnly });
+      return { content: [{ type: 'text', text: md }] };
+    }
     default:
       throw new Error(`unknown tool: ${name}`);
   }
@@ -218,7 +241,21 @@ async function readResource(params: Record<string, unknown>): Promise<unknown> {
     return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify({ anomalies }, null, 2) }] };
   }
   if (uri === 'events://recent') {
-    const events = (await readAllEvents()).slice(-200);
+    // Ring buffer of the trailing 200 events. Streams the file (bounded
+    // memory) instead of slurping the whole 500MB jsonl just to grab the tail.
+    const ring: Event[] = new Array(200);
+    let n = 0;
+    await streamEvents({}, (e) => {
+      ring[n % 200] = e;
+      n++;
+    });
+    const events: Event[] = [];
+    if (n <= 200) {
+      for (let i = 0; i < n; i++) events.push(ring[i]);
+    } else {
+      const start = n % 200;
+      for (let i = 0; i < 200; i++) events.push(ring[(start + i) % 200]);
+    }
     return { contents: [{ uri, mimeType: 'application/json', text: JSON.stringify({ events }, null, 2) }] };
   }
   throw new Error(`unknown resource: ${uri}`);
@@ -269,6 +306,108 @@ async function dispatchTask(brief: string, context?: string): Promise<unknown> {
     ],
     _meta: { sim_id: sim.sim_id, task_id: sim.task_id, url: `${base}/live/${sim.sim_id}` }
   };
+}
+
+// ============== team:workboard markdown renderer ==============
+
+const STATUS_LABEL: Record<string, string> = {
+  blocked: '🔴 Blocked',
+  active: '🟢 Active',
+  wrapping: '🟡 Wrapping',
+  dormant: '⚪ Dormant'
+};
+const SEV_LABEL: Record<string, string> = {
+  'act-now': '🚨',
+  'next-glance': '⚠️',
+  fyi: 'ℹ️'
+};
+
+function ageStr(iso: string | null | undefined): string {
+  if (!iso) return 'never';
+  const min = (Date.now() - Date.parse(iso)) / 60000;
+  if (min < 1) return 'just now';
+  if (min < 60) return `${Math.round(min)}m ago`;
+  if (min < 24 * 60) return `${Math.round(min / 60)}h ago`;
+  return `${Math.round(min / 60 / 24)}d ago`;
+}
+
+async function renderWorkboardMarkdown(opts: { attentionOnly: boolean }): Promise<string> {
+  const view = await getWorkboardView();
+  const projects = await readProjects();
+  const projectNameById = new Map(projects.projects.map((p) => [p.id, p.name]));
+
+  const lines: string[] = [];
+  lines.push('# Workboard');
+  if (view.degraded) {
+    lines.push(`> _degraded: ${view.degraded}_`);
+  }
+  lines.push('');
+
+  // 1. Attention list — same severity-ordered logic as the web /status page
+  // (act-now → blocked → next-glance → fyi → project.unattributed group).
+  // Pull project names through `attributeAnomalyToProject` so the markdown
+  // headlines read with project context, matching the Slack DM behavior.
+  const cwdByAgent = new Map<string, string | null | undefined>();
+  for (const r of (await getRosterView()).roster) {
+    cwdByAgent.set(r.name, r.currentRepo ?? null);
+  }
+
+  const attentionAnomalies = view.anomalies.filter((a) => a.severity_hint !== 'fyi');
+  const blockedProjects = view.projects.filter((p) => p.status === 'blocked');
+  lines.push(`## Needs your attention (${attentionAnomalies.length + blockedProjects.length})`);
+  lines.push('');
+  if (attentionAnomalies.length === 0 && blockedProjects.length === 0) {
+    lines.push('_All clear today._');
+  } else {
+    for (const p of blockedProjects) {
+      lines.push(`- 🔴 **${p.name}** — ${p.workItems.length} threads · CC ×${p.ccCount} · ${ageStr(p.lastActivityAt)}`);
+    }
+    for (const a of attentionAnomalies) {
+      const attr = await attributeAnomalyToProject(a, { cwdByAgent });
+      const proj = attr.projectId ? projectNameById.get(attr.projectId) : null;
+      const sev = SEV_LABEL[a.severity_hint] ?? '⚠️';
+      const subj =
+        a.subject.kind === 'agent' || a.subject.kind === 'repo'
+          ? a.subject.ref
+          : `${a.subject.kind}:${a.subject.ref}`;
+      const head = proj ? `**${proj}** · ${a.rule}` : `**${a.rule}** — ${subj}`;
+      lines.push(`- ${sev} ${head} · ${ageStr(a.triggered_at)}`);
+    }
+  }
+  lines.push('');
+
+  if (opts.attentionOnly) {
+    lines.push(`_${view.projects.length} project${view.projects.length === 1 ? '' : 's'} total — pass attentionOnly=false to see them all._`);
+    return lines.join('\n');
+  }
+
+  // 2. Full project grid.
+  lines.push(`## All projects (${view.projects.length})`);
+  lines.push('');
+  for (const p of view.projects) {
+    const status = STATUS_LABEL[p.status] ?? p.status;
+    lines.push(`### ${p.name}  · ${status}`);
+    lines.push(
+      `${p.workItems.length} thread${p.workItems.length === 1 ? '' : 's'} · CC ×${p.ccCount} · last activity ${ageStr(p.lastActivityAt)}`
+    );
+    for (const it of p.workItems.slice(0, 5)) {
+      lines.push(`- _${it.status}_ ${it.title}`);
+    }
+    if (p.workItems.length > 5) {
+      lines.push(`- _… +${p.workItems.length - 5} more_`);
+    }
+    lines.push('');
+  }
+  if (view.unclustered.length > 0) {
+    lines.push(`### Unclustered (${view.unclustered.length})`);
+    for (const u of view.unclustered.slice(0, 10)) {
+      lines.push(`- _${u.status}_ ${u.title}`);
+    }
+    if (view.unclustered.length > 10) {
+      lines.push(`- _… +${view.unclustered.length - 10} more_`);
+    }
+  }
+  return lines.join('\n');
 }
 
 // ============== stdio loop ==============

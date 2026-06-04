@@ -132,7 +132,7 @@ export function ReportChat({ sim_id, task_id }: ReportChatProps) {
         <div className="fixed bottom-24 right-6 z-40 w-[420px] h-[560px] card-warm shadow-modal flex flex-col overflow-hidden animate-fade-in">
           <header className="px-4 py-3 border-b border-rule flex items-center justify-between">
             <div>
-              <div className="font-serif text-[15px] text-ink">Report Agent</div>
+              <div className="font-serif text-[13px] text-ink">Report Agent</div>
               <div className="text-[10px] font-mono text-ink-quiet">Simulation · {sim_id.slice(-8)}</div>
             </div>
           </header>
@@ -140,7 +140,7 @@ export function ReportChat({ sim_id, task_id }: ReportChatProps) {
           <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {history.length === 0 && (
               <div className="space-y-3 animate-fade-in">
-                <p className="font-serif text-ink-soft text-[14px] leading-relaxed quote-soft">
+                <p className="font-serif text-ink-soft text-[13px] leading-relaxed quote-soft">
                   I&apos;ve read the full discussion from this simulation. Ask me anything about it.
                 </p>
                 <div className="space-y-1.5">

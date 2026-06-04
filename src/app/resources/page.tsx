@@ -110,13 +110,15 @@ export default function ResourcesPage() {
     <div className="px-12 py-10 max-w-[1100px] mx-auto">
       <Link
         href="/sources"
-        className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
+        className="inline-flex items-center gap-1.5 text-[12px] text-ink-quiet hover:text-ink-muted mb-3 transition-colors"
       >
-        <ArrowLeft size={12} /> Sources
+        <ArrowLeft size={13} /> Back to Sources
       </Link>
       <header className="flex items-end justify-between mb-8">
         <div className="max-w-2xl">
-          <div className="eyebrow mb-2">Rocket Team / Resources</div>
+          <div className="eyebrow mb-2">
+            Rocket Team / <Link href="/sources" className="hover:text-ink-muted transition-colors">Sources</Link> / Resources
+          </div>
           <h1 className="display-title">Resources</h1>
           <p className="prose-warm text-body text-ink-muted mt-3">
             Shared accounts, API keys, subscriptions, domains, certificates — who owns them, who can use them, when they renew, where they live.
@@ -285,7 +287,7 @@ function ResourceRow({
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <h3 className="font-serif text-[16px] text-ink leading-tight">{resource.name}</h3>
+            <h3 className="font-serif text-[14px] text-ink leading-tight">{resource.name}</h3>
             <span className="text-[10.5px] uppercase font-mono text-ink-quiet tracking-wide">
               {TYPE_LABEL[resource.type]}
             </span>
@@ -535,14 +537,14 @@ function ResourceModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Company Gmail / OpenAI prod key"
-                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] outline-none focus:border-coral-mute"
+                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13px] outline-none focus:border-coral-mute"
               />
             </Field>
             <Field label="Type *">
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value as ResourceType)}
-                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] outline-none focus:border-coral-mute"
+                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13px] outline-none focus:border-coral-mute"
               >
                 {Object.entries(TYPE_LABEL).map(([k, v]) => (
                   <option key={k} value={k}>
@@ -559,7 +561,7 @@ function ResourceModal({
                 value={vendor}
                 onChange={(e) => setVendor(e.target.value)}
                 placeholder="e.g. Google / OpenAI / Apple / Cloudflare"
-                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] outline-none focus:border-coral-mute"
+                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13px] outline-none focus:border-coral-mute"
               />
             </Field>
             <Field label="Identifier (visible, non-secret)">
@@ -567,7 +569,7 @@ function ResourceModal({
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="Account / key prefix / domain / cert ID"
-                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] font-mono outline-none focus:border-coral-mute"
+                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13px] font-mono outline-none focus:border-coral-mute"
               />
             </Field>
           </div>
@@ -654,7 +656,7 @@ function ResourceModal({
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
                 placeholder="e.g. 200"
-                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] outline-none focus:border-coral-mute"
+                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13px] outline-none focus:border-coral-mute"
               />
             </Field>
             <Field label="Expires (optional)">
@@ -662,7 +664,7 @@ function ResourceModal({
                 type="date"
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
-                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[14px] outline-none focus:border-coral-mute"
+                className="w-full bg-paper-card border border-rule rounded-md px-3 py-2 text-[13px] outline-none focus:border-coral-mute"
               />
             </Field>
           </div>

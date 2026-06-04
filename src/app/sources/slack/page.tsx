@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../../components/Toast';
 import { MeetingViewer } from '../../../components/MeetingViewer';
+import { fmtBeijing } from '../../../components/utils';
 
 const BOT_MANIFEST = `display_information:
   name: Rocket Team
@@ -395,9 +396,9 @@ export default function SlackOnboardPage() {
     <div className="px-12 py-10 max-w-[1100px] mx-auto">
       <Link
         href="/sources"
-        className="text-caption text-ink-muted hover:text-ink inline-flex items-center gap-1 mb-3"
+        className="inline-flex items-center gap-1.5 text-[12px] text-ink-quiet hover:text-ink-muted mb-3 transition-colors"
       >
-        <ArrowLeft size={12} /> Sources
+        <ArrowLeft size={13} /> Back to Sources
       </Link>
 
       <header className="flex items-start gap-4 mb-8">
@@ -405,7 +406,9 @@ export default function SlackOnboardPage() {
           <Slack size={24} className="text-[#611F69]" strokeWidth={1.8} />
         </div>
         <div className="flex-1">
-          <div className="eyebrow mb-1">Rocket Team / Sources / Slack</div>
+          <div className="eyebrow mb-1">
+            Rocket Team / <Link href="/sources" className="hover:text-ink-muted transition-colors">Sources</Link> / Slack
+          </div>
           <h1 className="display-title">
             {status?.connected ? `Connected to ${status.team}` : 'Connect Slack'}
           </h1>
@@ -481,7 +484,7 @@ export default function SlackOnboardPage() {
                           }`}
                         >
                           <Hash size={13} className="text-[#611F69]/60 shrink-0 self-center" strokeWidth={2.4} />
-                          <span className="font-serif text-[15.5px] text-ink shrink-0">{g.channel}</span>
+                          <span className="font-serif text-[13.5px] text-ink shrink-0">{g.channel}</span>
                           <span className="text-[12px] text-ink-quiet tabular-nums shrink-0">
                             {g.days.length} day{g.days.length === 1 ? '' : 's'} · {totalMsgs} msg{totalMsgs === 1 ? '' : 's'}
                           </span>
@@ -504,7 +507,7 @@ export default function SlackOnboardPage() {
                                   onClick={() => setOpenTranscript(d)}
                                   className="group w-full flex items-baseline gap-2.5 pl-12 pr-4 py-2 text-left hover:bg-paper-card transition-colors"
                                 >
-                                  <span className="font-serif text-[14px] text-ink shrink-0 w-[4.5rem] tabular-nums">{fmtDate(dt)}</span>
+                                  <span className="font-serif text-[13px] text-ink shrink-0 w-[4.5rem] tabular-nums">{fmtDate(dt)}</span>
                                   <span className="text-[11.5px] text-ink-quiet shrink-0 w-8 whitespace-nowrap">{dt ? weekday(dt) : ''}</span>
                                   <span className="text-ink-ghost shrink-0">·</span>
                                   <span className="text-[12.5px] text-ink-quiet shrink-0 tabular-nums">{msgCount(d.lineCount)} msg{msgCount(d.lineCount) === 1 ? '' : 's'}</span>
@@ -669,7 +672,7 @@ function ConnectedPanel({
                     className="accent-coral"
                   />
                   <Icon size={13} className="text-ink-quiet" />
-                  <span className="font-serif text-[14px] text-ink">{c.name}</span>
+                  <span className="font-serif text-[13px] text-ink">{c.name}</span>
                   {c.topic && (
                     <span className="text-[11px] text-ink-quiet truncate flex-1">{c.topic}</span>
                   )}
@@ -686,7 +689,7 @@ function ConnectedPanel({
           <div className="flex items-center justify-between mb-3">
             <span className="text-caption text-ink-quiet">
               {status.last_sync_at && (
-                <span>Last synced {status.last_sync_at.slice(0, 16).replace('T', ' ')}</span>
+                <span>Last synced {fmtBeijing(status.last_sync_at)}</span>
               )}
             </span>
             <button

@@ -37,7 +37,16 @@ export const PATHS = {
     process.env.ANOMALIES_CURRENT_FILE ?? join(PRIVATE_ROOT, 'anomalies.current.json')
   ),
   identityMap: resolve(process.env.IDENTITY_MAP_FILE ?? join(PRIVATE_ROOT, 'identity.json')),
-  syncState: resolve(join(PRIVATE_ROOT, 'sync_state'))
+  syncState: resolve(join(PRIVATE_ROOT, 'sync_state')),
+  projects: resolve(process.env.PROJECTS_FILE ?? join(PRIVATE_ROOT, 'projects.json')),
+  // Goal layer — leader-curated objectives, mirrors projects.json exactly
+  // (atomic write + mutex). Lives next to projects so a single private root
+  // holds the whole registry. See src/lib/goals.ts.
+  goals: resolve(process.env.GOALS_FILE ?? join(PRIVATE_ROOT, 'goals.json')),
+  // Vision layer — leader-curated strategic areas above goals. Mirrors goals.json
+  // exactly (atomic write + mutex). vision → goals → projects hierarchy.
+  // See src/lib/vision.ts.
+  vision: resolve(process.env.VISION_FILE ?? join(PRIVATE_ROOT, 'vision.json'))
 } as const;
 
 // safeJoin: join `name` onto `base` and verify the result still lives inside

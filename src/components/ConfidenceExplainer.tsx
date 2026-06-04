@@ -45,7 +45,7 @@ export function ConfidenceExplainer({
           onClick={(e) => e.stopPropagation()}
         >
           <header className="flex items-baseline justify-between mb-3">
-            <h3 className="font-serif text-[15px] text-ink">How confidence is computed</h3>
+            <h3 className="font-serif text-[13px] text-ink">How confidence is computed</h3>
             <button
               onClick={() => setOpen(false)}
               className="text-ink-quiet hover:text-ink"

@@ -117,7 +117,7 @@ export async function fetchSessionRaw(
   );
 }
 
-interface ParsedSession {
+export interface ParsedSession {
   events: NewEvent[];
   meta: {
     sessionId: string;
@@ -136,7 +136,7 @@ interface ParsedSession {
   };
 }
 
-function parseSession(
+export function parseSession(
   email: string,
   date: string,
   fileId: string,
@@ -227,14 +227,62 @@ function parseSession(
                 const toolName =
                   typeof blockObj.name === 'string' ? (blockObj.name as string) : 'unknown';
                 meta.toolCounts[toolName] = (meta.toolCounts[toolName] ?? 0) + 1;
-                // For Bash, capture the command text (truncated) so the
-                // danger-command anomaly rule can scan for rm -rf / force push /
-                // prod / secret patterns. Other tools: no args captured.
+                // Capture an info-dense excerpt per tool for downstream
+                // attribution / anomaly / work_summary. Without this every
+                // non-Bash tool call landed empty (栾蕊加's 18k events: 100%
+                // empty quotes despite 50 WebFetch + 47 WebSearch + 43 Write +
+                // 47 TaskUpdate — LLM had to guess from tool names alone and
+                // fabricated "Matrix-Riven 信息采集" because the name vibes).
+                // Caps each capture at ~500 chars to bound events.jsonl growth;
+                // per-tool slicing picks the highest-signal field.
+                const input = blockObj.input as Record<string, unknown> | undefined;
+                const str = (v: unknown): string => (typeof v === 'string' ? v : '');
                 let commandText: string | undefined;
-                if (toolName === 'Bash') {
-                  const input = blockObj.input as Record<string, unknown> | undefined;
-                  const cmd = input?.command;
-                  if (typeof cmd === 'string') commandText = cmd.slice(0, 500);
+                if (input) {
+                  switch (toolName) {
+                    case 'Bash':
+                      commandText = str(input.command).slice(0, 500);
+                      break;
+                    case 'WebFetch':
+                      commandText = `${str(input.url)} | ${str(input.prompt)}`.slice(0, 500);
+                      break;
+                    case 'WebSearch':
+                      commandText = str(input.query).slice(0, 500);
+                      break;
+                    case 'Read':
+                    case 'NotebookEdit':
+                      commandText = str(input.file_path).slice(0, 500);
+                      break;
+                    case 'Write':
+                    case 'Edit':
+                      commandText = `${str(input.file_path)} | ${str(input.new_string).slice(0, 200)}`.slice(0, 500);
+                      break;
+                    case 'Glob':
+                      commandText = `${str(input.pattern)} in ${str(input.path)}`.slice(0, 500);
+                      break;
+                    case 'Grep':
+                      commandText = `${str(input.pattern)} in ${str(input.path)} (${str(input.glob)})`.slice(0, 500);
+                      break;
+                    case 'TodoWrite': {
+                      const todos = input.todos;
+                      if (Array.isArray(todos)) {
+                        commandText = todos
+                          .map((t) => str((t as Record<string, unknown>)?.content))
+                          .filter(Boolean)
+                          .join(' | ')
+                          .slice(0, 500);
+                      }
+                      break;
+                    }
+                    case 'TaskCreate':
+                    case 'TaskUpdate':
+                      // Subagent tool — `description` is short, `prompt` is the
+                      // actual instruction (highest signal). Concat both.
+                      commandText = `${str(input.description) || str(input.subagent_type)} | ${str(input.prompt)}`.slice(0, 500);
+                      break;
+                  }
+                  if (commandText) commandText = commandText.replace(/\s+/g, ' ').trim();
+                  if (commandText === '') commandText = undefined;
                 }
                 events.push({
                   ts: ts ?? undefined,

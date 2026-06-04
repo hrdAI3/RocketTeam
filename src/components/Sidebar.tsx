@@ -10,6 +10,13 @@ import {
   Database,
   Settings,
   Rocket,
+  Users,
+  LogOut,
+  ArrowRight,
+  MessagesSquare,
+  LineChart,
+  Target,
+  Compass,
   type LucideIcon
 } from 'lucide-react';
 import { cn } from './utils';
@@ -22,8 +29,25 @@ interface NavItem {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [modKey, setModKey] = useState('Ctrl');
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (j?.username) setCurrentUser(j.username);
+      })
+      .catch(() => {});
+  }, []);
+
+  const onLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.replace('/login');
+    router.refresh();
+  };
 
   useEffect(() => {
     if (typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)) setModKey('⌘');
@@ -41,15 +65,34 @@ export function Sidebar() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Three things, flat. /status = the leader's daily glance. /tasks = the record
-  // of CLI-dispatched tasks + sim predictions. /sources = source config. No
-  // "deep" section, no Team (the PMA profiles still exist at /agents/<name> but
-  // they're a debug detail, not nav-worthy). Task dispatch is CLI-only.
+  // Three things, flat. /status = the leader's daily glance (Workboard, project
+  // axis). /tasks = the record of CLI-dispatched tasks + sim predictions —
+  // renamed "Dispatch" so it doesn't collide with the new project workboard
+  // (which is the real "Projects" axis now). /sources = source config. No
+  // "deep" section, no Team. Task dispatch itself is CLI-only.
+  // Order = the leader's daily flow, grouped by purpose:
+  //   monitor (Status → Team → Evaluation)  →  act (Dispatch)  →
+  //   plumbing (Sources → Messages).
+  // Status is the landing glance; Team + Evaluation are the people views;
+  // Dispatch is where you assign; Sources + Messages are system/comms.
+  // Ordered by visit frequency within each group: monitor people (Status →
+  // Team → Evaluation) → act (Dispatch) → comms you check often (Messages) →
+  // set-once data config (Sources), which sits last next to Settings since
+  // both are configure-and-forget.
   const nav: NavItem[] = [
     { href: '/status', label: 'Status', icon: Activity },
-    { href: '/tasks', label: 'Projects', icon: FolderKanban },
+    { href: '/status/vision', label: 'Vision', icon: Compass },
+    { href: '/status/goals', label: 'Goals', icon: Target },
+    { href: '/team', label: 'Team', icon: Users },
+    { href: '/evaluation', label: 'Evaluation', icon: LineChart },
+    { href: '/tasks', label: 'Dispatch', icon: FolderKanban },
+    { href: '/messages', label: 'Messages', icon: MessagesSquare },
     { href: '/sources', label: 'Sources', icon: Database }
   ];
+
+  // After all hooks: hide sidebar on the login screen for a full-bleed
+  // signin page. Placed here (not earlier) to keep hook order stable.
+  if (pathname === '/login') return null;
 
   return (
     <>
@@ -104,7 +147,12 @@ export function Sidebar() {
           })}
         </nav>
 
-        <div className="mt-auto px-2 pb-3 pt-3 border-t border-rule">
+        <div className="mt-auto px-2 pb-3 pt-3 border-t border-rule space-y-0.5">
+          {currentUser && (
+            <div className="px-2.5 py-1 text-[10px] uppercase tracking-wider text-ink-quiet">
+              Signed in as <span className="text-ink-muted normal-case">{currentUser}</span>
+            </div>
+          )}
           <Link
             href="/settings"
             className={cn(
@@ -117,6 +165,13 @@ export function Sidebar() {
             <Settings size={15} strokeWidth={2} />
             <span>Settings</span>
           </Link>
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sidebar text-ink-quiet hover:bg-paper-deep hover:text-ink transition-colors"
+          >
+            <LogOut size={15} strokeWidth={2} />
+            <span>Sign out</span>
+          </button>
         </div>
       </aside>
 
@@ -125,26 +180,57 @@ export function Sidebar() {
   );
 }
 
+type HitType = 'member' | 'project' | 'task' | 'meeting' | 'page';
 interface SearchHit {
-  type: 'member' | 'task' | 'meeting';
+  type: HitType;
   label: string;
   sub?: string;
   href: string;
 }
 
+// Static page-jump entries — always available, even with no query. Mirrors the
+// "GO TO" rows in the Rocket Team design CmdK.
+const PAGE_HITS: SearchHit[] = [
+  { type: 'page', label: 'Workboard', sub: '/status', href: '/status' },
+  { type: 'page', label: 'All projects', sub: '/status/projects', href: '/status/projects' },
+  { type: 'page', label: 'Vision', sub: '/status/vision', href: '/status/vision' },
+  { type: 'page', label: 'Goals', sub: '/status/goals', href: '/status/goals' },
+  { type: 'page', label: 'Dispatch', sub: '/tasks', href: '/tasks' },
+  { type: 'page', label: 'Team', sub: '/team', href: '/team' },
+  { type: 'page', label: 'Sources', sub: '/sources', href: '/sources' },
+  { type: 'page', label: 'Evaluation', sub: '/evaluation', href: '/evaluation' },
+  { type: 'page', label: 'Messages', sub: '/messages', href: '/messages' },
+  { type: 'page', label: 'Settings', sub: '/settings', href: '/settings' }
+];
+
+const TYPE_LABEL: Record<HitType, string> = {
+  member: 'MEMBER',
+  project: 'PROJECT',
+  task: 'TASK',
+  meeting: 'MEETING',
+  page: 'GO TO'
+};
+const TYPE_TONE: Record<HitType, string> = {
+  member: 'text-coral',
+  project: 'text-plum',
+  task: 'text-sky',
+  meeting: 'text-forest',
+  page: 'text-ink-quiet'
+};
+
 function SearchModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const [hits, setHits] = useState<SearchHit[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
-
-  // Build index once when opened.
   const [index, setIndex] = useState<SearchHit[] | null>(null);
+
+  // Build index once when opened. Members + projects + tasks + meetings.
   useEffect(() => {
     void (async () => {
       try {
-        const [a, t, m] = await Promise.all([
+        const [a, ctx, t, m] = await Promise.all([
           fetch('/api/agents', { cache: 'no-store' }).then((r) => r.json()),
+          fetch('/api/team/context', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
           fetch('/api/tasks', { cache: 'no-store' }).then((r) => r.json()),
           fetch('/api/meetings', { cache: 'no-store' }).then((r) => r.json())
         ]);
@@ -155,25 +241,25 @@ function SearchModal({ onClose }: { onClose: () => void }) {
               type: 'member',
               label: ag.name,
               sub: [ag.dept, ag.role].filter(Boolean).join(' · '),
-              href: `/agents/${encodeURIComponent(ag.name)}`
+              href: `/team/${encodeURIComponent(ag.name)}`
+            });
+          }
+        }
+        for (const p of (ctx.projects ?? []) as Array<{ id: string; name: string; curated?: boolean; top_contributors?: unknown[] }>) {
+          if (p.id && p.name && !p.id.startsWith('virtual:')) {
+            idx.push({
+              type: 'project',
+              label: p.name,
+              sub: p.curated ? 'curated' : 'project',
+              href: `/status/project/${encodeURIComponent(p.id)}`
             });
           }
         }
         for (const tk of (t.tasks ?? []) as Array<{ id: string; description: string }>) {
-          idx.push({
-            type: 'task',
-            label: tk.description.slice(0, 60),
-            sub: tk.id,
-            href: `/tasks`
-          });
+          idx.push({ type: 'task', label: tk.description.slice(0, 60), sub: tk.id, href: `/tasks` });
         }
         for (const mt of (m.meetings ?? []) as Array<{ file: string; title: string; date?: string }>) {
-          idx.push({
-            type: 'meeting',
-            label: mt.title,
-            sub: mt.date,
-            href: `/sources`
-          });
+          idx.push({ type: 'meeting', label: mt.title, sub: mt.date, href: `/sources` });
         }
         setIndex(idx);
       } catch {
@@ -182,23 +268,23 @@ function SearchModal({ onClose }: { onClose: () => void }) {
     })();
   }, []);
 
-  useEffect(() => {
-    if (!index) return;
+  // Empty query → default suggestions (pages + first projects). Typed query →
+  // fuzzy-contains across the whole index.
+  const hits = (() => {
+    const all = [...PAGE_HITS, ...(index ?? [])];
     const q = query.trim().toLowerCase();
     if (!q) {
-      setHits([]);
-      return;
+      const projects = (index ?? []).filter((h) => h.type === 'project').slice(0, 4);
+      return [...PAGE_HITS, ...projects];
     }
-    setHits(
-      index
-        .filter(
-          (h) =>
-            h.label.toLowerCase().includes(q) || (h.sub ?? '').toLowerCase().includes(q)
-        )
-        .slice(0, 12)
-    );
+    return all
+      .filter((h) => h.label.toLowerCase().includes(q) || (h.sub ?? '').toLowerCase().includes(q))
+      .slice(0, 12);
+  })();
+
+  useEffect(() => {
     setActiveIdx(0);
-  }, [query, index]);
+  }, [query]);
 
   return (
     <div
@@ -208,7 +294,7 @@ function SearchModal({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        className="bg-paper-card rounded-xl shadow-modal w-[600px] border border-rule overflow-hidden"
+        className="bg-paper-card rounded-xl shadow-modal w-[620px] max-w-[92vw] border border-rule overflow-hidden"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') {
@@ -232,15 +318,15 @@ function SearchModal({ onClose }: { onClose: () => void }) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search members, tasks, meetings…"
+            placeholder="搜索成员、项目、任务，或跳转页面…"
             className="flex-1 bg-transparent outline-none text-body text-ink placeholder:text-ink-quiet"
           />
           <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-paper border border-rule text-ink-quiet">
             esc
           </kbd>
         </div>
-        <div className="max-h-[400px] overflow-y-auto">
-          {hits.length === 0 && query && (
+        <div className="max-h-[420px] overflow-y-auto">
+          {hits.length === 0 && (
             <div className="px-5 py-10 text-center text-caption text-ink-quiet">
               {index === null ? 'Loading…' : 'No matches'}
             </div>
@@ -262,23 +348,29 @@ function SearchModal({ onClose }: { onClose: () => void }) {
               >
                 <span
                   className={cn(
-                    'text-[10.5px] uppercase tracking-wide font-mono px-1.5 py-0.5 rounded shrink-0',
-                    h.type === 'member'
-                      ? 'bg-paper-subtle text-coral'
-                      : h.type === 'task'
-                        ? 'bg-paper-subtle text-sky'
-                        : 'bg-paper-subtle text-forest'
+                    'text-[9.5px] uppercase tracking-[0.06em] font-mono px-1.5 py-0.5 rounded shrink-0 bg-paper-subtle text-center w-[58px]',
+                    TYPE_TONE[h.type]
                   )}
                 >
-                  {h.type === 'member' ? 'MEMBER' : h.type === 'task' ? 'TASK' : 'MEETING'}
+                  {TYPE_LABEL[h.type]}
                 </span>
                 <span className="font-serif text-[14px] text-ink truncate flex-1">{h.label}</span>
                 {h.sub && (
-                  <span className="text-[11px] text-ink-quiet truncate shrink-0">{h.sub}</span>
+                  <span className="text-[11px] text-ink-quiet truncate shrink-0 max-w-[240px]">{h.sub}</span>
                 )}
+                {active && <ArrowRight size={14} className="text-coral shrink-0" />}
               </button>
             );
           })}
+        </div>
+        <div className="flex items-center gap-4 px-5 py-2 border-t border-rule bg-paper-subtle text-[11px] text-ink-quiet">
+          <span className="flex items-center gap-1">
+            <kbd className="font-mono px-1.5 py-px rounded bg-paper-card border border-rule">↑↓</kbd> navigate
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="font-mono px-1.5 py-px rounded bg-paper-card border border-rule">↵</kbd> open
+          </span>
+          <span className="ml-auto tabular-nums">{hits.length} result{hits.length === 1 ? '' : 's'}</span>
         </div>
       </div>
     </div>

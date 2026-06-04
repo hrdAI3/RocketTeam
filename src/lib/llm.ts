@@ -17,6 +17,11 @@ export interface LLMCallOptions {
   maxTokens?: number;
   signal?: AbortSignal;
   jsonMode?: boolean;
+  // Deterministic sampling. When provider supports it (OpenAI-compatible
+  // `seed` param), same (model, system, user, temperature, seed) yields the
+  // same output across calls. Anthropic / MiniMax may ignore. We still pass
+  // it; harmless when unsupported.
+  seed?: number;
 }
 
 export interface LLMStreamOptions extends LLMCallOptions {
@@ -56,7 +61,8 @@ async function callOpenAICompat(opts: LLMCallOptions): Promise<string> {
       { role: 'user', content: opts.user }
     ],
     temperature: opts.temperature ?? 0.4,
-    max_tokens: opts.maxTokens ?? 2048
+    max_tokens: opts.maxTokens ?? 2048,
+    ...(opts.seed !== undefined ? { seed: opts.seed } : {})
   };
   if (opts.jsonMode) {
     (body as unknown as Record<string, unknown>).response_format = { type: 'json_object' };
@@ -91,7 +97,8 @@ async function callMinimax(opts: LLMCallOptions): Promise<string> {
       { role: 'user', content: opts.user }
     ],
     temperature: opts.temperature ?? 0.4,
-    max_tokens: opts.maxTokens ?? 2048
+    max_tokens: opts.maxTokens ?? 2048,
+    ...(opts.seed !== undefined ? { seed: opts.seed } : {})
   };
   if (opts.jsonMode && model === 'MiniMax-Text-01') {
     (body as unknown as Record<string, unknown>).response_format = {
@@ -180,7 +187,8 @@ async function streamMinimax(opts: LLMStreamOptions): Promise<string> {
       ],
       temperature: opts.temperature ?? 0.4,
       max_tokens: opts.maxTokens ?? 2048,
-      stream: true
+      stream: true,
+      ...(opts.seed !== undefined ? { seed: opts.seed } : {})
     },
     { signal: opts.signal }
   );
@@ -228,7 +236,8 @@ async function streamOpenAICompat(opts: LLMStreamOptions): Promise<string> {
       ],
       temperature: opts.temperature ?? 0.4,
       max_tokens: opts.maxTokens ?? 2048,
-      stream: true
+      stream: true,
+      ...(opts.seed !== undefined ? { seed: opts.seed } : {})
     },
     { signal: opts.signal }
   );

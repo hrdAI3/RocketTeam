@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
+  ArrowLeft,
   ChevronRight,
   Plus,
   Search,
@@ -92,6 +93,12 @@ export default function MeetingsPage() {
 
   return (
     <div className="px-12 py-10 max-w-[1040px] mx-auto">
+      <Link
+        href="/sources"
+        className="inline-flex items-center gap-1.5 text-[12px] text-ink-quiet hover:text-ink-muted mb-3 transition-colors"
+      >
+        <ArrowLeft size={13} /> Back to Sources
+      </Link>
       <header className="flex items-end justify-between mb-8">
         <div className="max-w-2xl">
           <div className="eyebrow mb-2">
@@ -131,7 +138,7 @@ export default function MeetingsPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search title or filename…"
-          className="w-full pl-9 pr-3 py-2.5 bg-paper-card border border-rule rounded-lg text-[14px] text-ink outline-none focus:border-coral-mute placeholder:text-ink-quiet"
+          className="w-full pl-9 pr-3 py-2.5 bg-paper-card border border-rule rounded-lg text-[13px] text-ink outline-none focus:border-coral-mute placeholder:text-ink-quiet"
         />
       </div>
 
@@ -165,7 +172,7 @@ export default function MeetingsPage() {
               onClick={() => setActive(m)}
               className="w-full text-left bg-paper-card hover:bg-paper-subtle transition-colors flex items-center gap-4 px-4 py-3"
             >
-              <span className="font-serif text-[15px] text-ink leading-tight truncate flex-1 min-w-0">{m.title}</span>
+              <span className="font-serif text-[13px] text-ink leading-tight truncate flex-1 min-w-0">{m.title}</span>
               <span className="font-mono text-[11.5px] shrink-0 w-14 tabular-nums text-ink-quiet">
                 {m.date ?? <span className="text-ink-ghost">—</span>}
               </span>
@@ -213,7 +220,7 @@ export default function MeetingsPage() {
               rows={6}
               autoFocus
               placeholder="Paste a new meeting snippet or firsthand observation…"
-              className="w-full bg-paper-card border border-rule rounded-lg px-3 py-2.5 font-serif text-[14.5px] leading-relaxed text-ink outline-none resize-y placeholder:text-ink-quiet focus:border-coral-mute"
+              className="w-full bg-paper-card border border-rule rounded-lg px-3 py-2.5 font-serif text-[13.5px] leading-relaxed text-ink outline-none resize-y placeholder:text-ink-quiet focus:border-coral-mute"
             />
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-rule-soft">
               <button
