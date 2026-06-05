@@ -9,7 +9,7 @@
 // goal (goals.json); linking from here POSTs {goal_id, vision_area_id}.
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Plus, Compass, X, Sparkles, Check } from 'lucide-react';
+import { RefreshCw, Plus, Compass, X, Sparkles, Check, Navigation } from 'lucide-react';
 
 type Momentum = 'active' | 'quiet';
 interface LinkedGoal {
@@ -61,6 +61,27 @@ interface SuggestView {
   area_gap_count: number;
   generated_at: string;
 }
+interface DecisionCard {
+  recommendation: string;
+  evidence: string;
+  counter_argument: string;
+  leverage: 'high' | 'medium' | 'low';
+  severity: 'high' | 'medium' | 'low';
+}
+interface UnmappedWork {
+  repo: string;
+  commits_7d: number;
+  note: string;
+}
+interface StrategicPlan {
+  bluf: string;
+  gaps: Array<{ area: string; desired: string; current: string; status: string }>;
+  decisions: DecisionCard[];
+  starving: string[];
+  unmapped: UnmappedWork[];
+  generated_at: string;
+  degraded?: string;
+}
 
 function syncedStr(ms: number | null): string {
   if (ms === null) return '';
@@ -88,6 +109,8 @@ export default function VisionPage() {
   const [suggest, setSuggest] = useState<SuggestView | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const [accepting, setAccepting] = useState<string | null>(null);
+  const [plan, setPlan] = useState<StrategicPlan | null>(null);
+  const [planning, setPlanning] = useState(false);
   const [, forceTick] = useState(0);
 
   useEffect(() => {
@@ -250,6 +273,24 @@ export default function VisionPage() {
       prev ? { ...prev, suggestions: prev.suggestions.filter((x) => x !== s) } : prev
     );
 
+  // 战略计划:on-demand LLM pass over the tree + real execution → decision cards.
+  const runPlan = async () => {
+    setPlanning(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/plan', { cache: 'no-store' });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error ?? `Plan failed: ${res.status}`);
+      }
+      setPlan((await res.json()) as StrategicPlan);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setPlanning(false);
+    }
+  };
+
   const areas = data?.areas ?? [];
   const noExec = data?.areas_without_goals ?? [];
   const noStrategy = data?.goals_without_area ?? [];
@@ -265,6 +306,15 @@ export default function VisionPage() {
           {syncedAt !== null && (
             <span className="text-[11px] text-ink-quiet tabular-nums">{syncedStr(syncedAt)}</span>
           )}
+          <button
+            onClick={runPlan}
+            disabled={planning}
+            className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-coral hover:text-coral-deep transition-colors disabled:opacity-50"
+            title="吃整棵战略树 + 真实执行数据 → 本周战略计划与指导"
+          >
+            <Navigation size={14} className={planning ? 'animate-pulse' : ''} />
+            {planning ? '推演中…' : '本周战略计划'}
+          </button>
           <button
             onClick={runSuggest}
             disabled={suggesting}
@@ -307,6 +357,80 @@ export default function VisionPage() {
           onSubmit={submitForm}
           onCancel={() => setForm(null)}
         />
+      )}
+
+      {plan && (
+        <section className="mt-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Navigation size={13} className="text-coral" />
+            <span className="eyebrow text-coral">本周战略计划 · 舵</span>
+            <button onClick={() => setPlan(null)} className="ml-auto text-[11.5px] text-ink-quiet hover:text-ink transition-colors">
+              收起
+            </button>
+          </div>
+          {/* BLUF — bottom line up front */}
+          <div className="card-surface rounded-xl px-5 py-4 border-l-2 border-l-coral mb-3">
+            <div className="text-[10px] uppercase tracking-wider text-ink-quiet mb-1">本周最重要的一件事</div>
+            <div className="font-serif text-[17px] text-ink leading-snug">{plan.bluf}</div>
+            {plan.degraded && (
+              <div className="text-[11px] text-rust mt-1.5">LLM 未就绪,仅确定性信号(无决策卡综合)</div>
+            )}
+          </div>
+          {/* Starving + unmapped — the strategic gaps */}
+          {(plan.starving.length > 0 || plan.unmapped.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-3">
+              {plan.starving.length > 0 && (
+                <div className="rounded-xl border border-rust/40 bg-paper-card px-4 py-3">
+                  <div className="text-[10px] uppercase tracking-wider text-rust mb-1.5">挨饿赌注(战略有·执行无)</div>
+                  {plan.starving.map((s, i) => (
+                    <div key={i} className="text-[12.5px] text-ink leading-snug mb-1">⚠ {s}</div>
+                  ))}
+                </div>
+              )}
+              {plan.unmapped.length > 0 && (
+                <div className="rounded-xl border border-amber/40 bg-paper-card px-4 py-3">
+                  <div className="text-[10px] uppercase tracking-wider text-amber mb-1.5">盲区(高产·不在任何赌注)</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {plan.unmapped.map((u) => (
+                      <span key={u.repo} className="text-[11px] px-2 py-0.5 rounded-full bg-paper-subtle text-ink-soft tabular-nums" title={u.note}>
+                        {u.repo} · {u.commits_7d}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {/* Decision cards — leverage-ranked, each with forced counter-argument */}
+          {plan.decisions.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-rule bg-paper-card px-6 py-6 text-center text-[13px] text-ink-muted">
+              暂无决策卡(数据稀疏或 LLM 未就绪)。
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {plan.decisions.map((d, i) => (
+                <div key={i} className="card-surface rounded-xl px-5 py-4">
+                  <div className="flex items-start justify-between gap-3 mb-1.5">
+                    <div className="font-serif text-[15px] text-ink leading-snug">{i + 1}. {d.recommendation}</div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className={'text-[9.5px] uppercase tracking-wide px-1.5 py-0.5 rounded ' + (d.leverage === 'high' ? 'bg-coral text-white' : d.leverage === 'low' ? 'bg-paper-subtle text-ink-quiet' : 'bg-coral-subtle/50 text-coral')} title="杠杆">
+                        {d.leverage === 'high' ? '高杠杆' : d.leverage === 'low' ? '低杠杆' : '中杠杆'}
+                      </span>
+                    </div>
+                  </div>
+                  {d.evidence && (
+                    <div className="text-[12px] text-ink-quiet leading-snug mb-1.5">
+                      <span className="text-ink-soft font-medium">依据 </span>{d.evidence}
+                    </div>
+                  )}
+                  <div className="text-[12px] text-rust leading-snug border-l-2 border-rust/30 pl-2.5">
+                    <span className="font-medium">⚠ 反方 </span>{d.counter_argument}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       {suggest && (
