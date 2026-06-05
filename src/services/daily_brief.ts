@@ -243,7 +243,9 @@ async function gatherSignals(yesterdayYmd: string): Promise<{
     }
   }
   lines.push(`未归项目的工作线: ${unattributed}`);
-  lines.push(`GitHub 合规未配齐: ${gaps.length}${gaps.length ? ' (' + gaps.filter(Boolean).slice(0, 8).join(', ') + ')' : ''}`);
+  // COUNT ONLY — never the GitHub logins. The /status brief card must not name
+  // individuals (workboard is the project axis; person detail lives on /team).
+  lines.push(`GitHub 合规未配齐: ${gaps.length}`);
   // ── 目标层 — are we progressing toward our goals? (strategy, not hygiene) ──
   if (gview.goals.length) {
     const onTrack = gview.goals.filter((g) => !g.at_risk && g.momentum === 'active');
@@ -261,12 +263,14 @@ async function gatherSignals(yesterdayYmd: string): Promise<{
       lines.push(`  未目标化的活跃项目(可考虑建目标,低优): ${drift.map((d) => `${d.name}(${d.commits_7d})`).join(', ')}`);
     }
   }
-  // who's working on what (cached headlines)
+  // Activity is summarized at the AGGREGATE level only — NO names, NO per-person
+  // headlines. The /status brief card must stay name-free (workboard is the
+  // project axis; "who is doing what" lives on /team and the member pages). We
+  // feed counts so the LLM can gauge activity without being able to name anyone.
   if (activeSummaries.size) {
-    lines.push(`\n# 每人在做什么(work summary headline)`);
-    for (const [name, s] of activeSummaries) {
-      lines.push(`  - ${name}: ${s.headline}${s.staleAt ? ' (stale)' : ''}`);
-    }
+    const staleCount = [...activeSummaries.values()].filter((s) => s.staleAt).length;
+    lines.push(`\n# 团队活跃概况(聚合,无人名)`);
+    lines.push(`  有 work summary 的活跃成员: ${activeSummaries.size}${staleCount ? ` · 其中 ${staleCount} 人摘要已 stale` : ''}`);
   }
   return { signals, facts: lines.join('\n') };
 }
@@ -285,10 +289,11 @@ const SYSTEM = `你是团队 leader 安子岩的参谋长。每个工作日早�
 }
 
 要求:
-- 聚焦**真实的团队 / 项目进展和卡点**:哪些项目在推进、哪些真卡住了(blocked)、谁可能需要帮助、有没有重要产出。这才是 leader 关心的。
+- **绝对禁止出现任何具体人名或 GitHub 账号名。** 这份简报显示在 status 总览页(项目轴),个人维度的事属于 /team 和成员页。即使数据里带了名字也不许引用;需要提到个人时只能用「一名成员」「某成员」这类匿名说法,或干脆只讲项目/目标层面。
+- 聚焦**真实的项目进展和卡点**:哪些项目在推进、哪些真卡住了(blocked)、有没有重要产出。这才是 leader 关心的。
 - **以下是系统内务(hygiene),系统已自动处理,不要当成紧急事项、不要主导简报**:「未归项目的工作线 / unattributed 异常」「GitHub 合规未配齐」「未映射 CC actor」「project.unattributed 规则」。这些最多在末尾一句带过、severity 一律 low,且只在数量很大时才提。它们是我们系统自己的管线指标,不是团队的问题。
 - **目标层是战略,不是 hygiene**:at-risk 目标(linked 项目 blocked 或上周有 commit 本周归零)是真实的战略卡点,放进 attention 最前面、severity=high。drift(未目标化的活跃项目)只是建议,最多末尾一条 severity=low『可为 X 建立目标』。推进中的目标提一句即可,不占 attention。
-- attention 按重要性排,3-6 条:blocked 项目、act-now 异常、某人异常状态(高活跃零产出 / stale 摘要)排最前。
+- attention 按重要性排,3-6 条:at-risk 目标、blocked 项目、act-now 异常排最前。涉及个人的事(stale 摘要等)只能匿名+聚合提及,不点名。
 - 只引用给的数据。真没有值得 leader 看的就如实说「团队运转正常,无需特别关注」,别用 hygiene 硬凑紧急感。
 - 中文,简洁,像参谋长对一把手汇报,不啰嗦。`;
 
