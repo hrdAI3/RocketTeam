@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { RefreshCw, Users, FolderOpen, Trash2 } from 'lucide-react';
+import { RefreshCw, Users, FolderOpen, Trash2, HeartPulse } from 'lucide-react';
 import { Avatar, AvatarStack } from '@/components/Avatar';
 import type { Department } from '@/types';
 
@@ -66,8 +66,24 @@ interface ContextResp {
   };
 }
 
+interface DepartureSuspect {
+  name: string;
+  reason: 'slack-deactivated' | 'cc-silent-30d';
+  detail: string;
+}
+interface UnmappedCcActor {
+  actor: string;
+  event_count: number;
+  last_seen: string;
+}
+interface RosterHealth {
+  departureSuspects: DepartureSuspect[];
+  unmappedCcActors: UnmappedCcActor[];
+}
+
 export default function TeamPage() {
   const [data, setData] = useState<ContextResp | null>(null);
+  const [health, setHealth] = useState<RosterHealth | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -81,6 +97,12 @@ export default function TeamPage() {
       })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
+    // Roster health (departure suspects + unmapped CC actors) — moved here from
+    // /status: these are person-axis governance signals, not project-axis glance.
+    fetch('/api/roster/health', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setHealth(j as RosterHealth))
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -132,6 +154,19 @@ export default function TeamPage() {
         </Section>
       )}
 
+      {/* Section: roster health — person-axis governance moved off /status.
+          Possible departures + unmapped CC actors (these name individuals, so
+          they belong on the person-axis Team page, not the project glance). */}
+      {health && (health.departureSuspects.length > 0 || health.unmappedCcActors.length > 0) && (
+        <Section
+          icon={<HeartPulse size={14} />}
+          title="Roster health"
+          caption={`${health.departureSuspects.length} possible departure · ${health.unmappedCcActors.length} unmapped CC actor`}
+        >
+          <RosterHealthBody health={health} />
+        </Section>
+      )}
+
       {/* Section: projects — canonical projects.json registry, merged with
           hand-curated project_knowledge.json overlay. Same source as /status. */}
       {data && (
@@ -164,6 +199,58 @@ function KpiStrip({ data }: { data: ContextResp }) {
       <Kpi label="CC sessions (30d)" value={totalSessions.toLocaleString()} />
       <Kpi label="Curated projects" value={totalProjects} />
       <Kpi label="Identity links" value={identityCovered} />
+    </div>
+  );
+}
+
+const DEPARTURE_REASON_LABEL: Record<DepartureSuspect['reason'], string> = {
+  'slack-deactivated': 'Slack 已停用',
+  'cc-silent-30d': 'CC 静默超 30 天'
+};
+
+function RosterHealthBody({ health }: { health: RosterHealth }) {
+  return (
+    <div className="space-y-5">
+      {health.departureSuspects.length > 0 && (
+        <div>
+          <div className="eyebrow text-ink-quiet mb-2">疑似离职</div>
+          <div className="rounded-xl border border-rule bg-paper-card divide-y divide-rule-soft">
+            {health.departureSuspects.map((d) => (
+              <div key={d.name} className="flex items-center gap-3 px-5 py-3">
+                <Avatar name={d.name} dept={'产品'} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-serif text-[15px] text-ink">{d.name}</div>
+                  <div className="text-[11.5px] text-ink-quiet">
+                    {DEPARTURE_REASON_LABEL[d.reason]}
+                    {d.detail ? <span className="text-ink-ghost"> · {d.detail}</span> : null}
+                  </div>
+                </div>
+                <Link href={`/team/${encodeURIComponent(d.name)}`} className="text-[12px] text-coral hover:text-coral-deep shrink-0">
+                  查看
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {health.unmappedCcActors.length > 0 && (
+        <div>
+          <div className="eyebrow text-ink-quiet mb-2">未映射 CC actor(有活动但不在花名册)</div>
+          <div className="rounded-xl border border-rule bg-paper-card divide-y divide-rule-soft">
+            {health.unmappedCcActors.map((u) => (
+              <div key={u.actor} className="flex items-center gap-4 px-5 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="font-mono text-[13px] text-ink truncate">{u.actor}</div>
+                  <div className="text-[11.5px] text-ink-quiet tabular-nums">
+                    {u.event_count} events · last {u.last_seen ? new Date(u.last_seen).toISOString().slice(0, 10) : '?'}
+                  </div>
+                </div>
+                <span className="text-[11px] text-ink-quiet shrink-0">需映射到花名册</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

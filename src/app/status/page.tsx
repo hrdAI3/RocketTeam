@@ -291,7 +291,9 @@ export default function WorkboardPage() {
   const attentionItems: AttentionItem[] = [
     ...otherAnomalies.map((a) => ({ kind: 'anomaly' as const, data: a })),
     ...blockedProjects.map((p) => ({ kind: 'blocked' as const, data: p })),
-    ...(health?.departureSuspects ?? []).map((d) => ({ kind: 'departure' as const, data: d })),
+    // Person-axis governance (possible departures, unmapped CC actors) lives on
+    // /team, NOT on this project-axis glance — they name individuals. See the
+    // Roster health section on the Team page.
     // Replaced the single "Unattributed work · N" aggregate with one row per
     // inferred untracked project. Each row carries the owner + work titles so
     // the leader sees what's actually untracked (and Slack DMs the owner per
@@ -309,8 +311,7 @@ export default function WorkboardPage() {
     // queue" page wants them.
     ...externalOwners
       .filter((r) => !r.responsibleLeft)
-      .map((r) => ({ kind: 'transfer' as const, data: r })),
-    ...(health?.unmappedCcActors ?? []).map((u) => ({ kind: 'unmapped' as const, data: u }))
+      .map((r) => ({ kind: 'transfer' as const, data: r }))
   ].sort((a, b) => rank(a) - rank(b));
   const attentionCount = attentionItems.length;
   const allClear = data !== null && attentionCount === 0;
