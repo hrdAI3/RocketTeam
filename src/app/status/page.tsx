@@ -567,14 +567,9 @@ function AttentionRow({ item, onAction }: { item: AttentionItem; onAction: () =>
     tone = 'amber';
     pill = 'Untracked';
     title = p.name;
+    // No owner name on the project-axis glance — show the work, not the person.
     detail = (
       <>
-        {p.owner && (
-          <>
-            <span className="font-medium text-ink">{p.owner}</span>
-            <span className="text-ink-ghost mx-1.5">·</span>
-          </>
-        )}
         <span className="truncate">{titles.join(' / ')}</span>
         {extra > 0 && <span className="text-ink-quiet ml-1">+{extra}</span>}
       </>
@@ -586,11 +581,14 @@ function AttentionRow({ item, onAction }: { item: AttentionItem; onAction: () =>
     tone = 'amber';
     pill = 'FYI';
     title = 'Repo on personal account';
+    // /status is the project-axis glance — NO person names. Show the repo only
+    // (owner login + responsible name live on the deeper ownership/team views;
+    // the Slack DM still goes to the owner via the actuator).
     detail = (
       <>
-        <span className="font-mono">{r.fullName}</span>
+        <span className="font-mono">{r.name}</span>
         <span className="text-ink-ghost mx-1.5">·</span>
-        {r.responsible ? `Owner ${r.responsible} · transfer to anzy-renlab-ai` : 'transfer to anzy-renlab-ai'}
+        transfer to anzy-renlab-ai
       </>
     );
     age = 'ongoing';
@@ -602,11 +600,9 @@ function AttentionRow({ item, onAction }: { item: AttentionItem; onAction: () =>
     title = 'Departed owner — repo needs handoff';
     detail = (
       <>
-        <span className="font-mono">{r.fullName}</span>
+        <span className="font-mono">{r.name}</span>
         <span className="text-ink-ghost mx-1.5">·</span>
-        {r.responsible ? `${r.responsible} 已离职` : '前成员'}
-        <span className="text-ink-ghost mx-1.5">·</span>
-        转交 anzy-renlab-ai 或重新分配
+        原所属人已离职 · 转交 anzy-renlab-ai 或重新分配
       </>
     );
     age = 'action';
